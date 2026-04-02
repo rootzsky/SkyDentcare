@@ -70,14 +70,34 @@ export function Login({ onLogin }: LoginProps) {
     if (!validateCaptcha()) return;
     setIsLoading(true);
     try {
+      // Ensure we use signInWithPopup as it's more reliable in iframes than redirect
       await signInWithPopup(auth, googleProvider);
       toast.success('Berhasil masuk dengan Google');
     } catch (error: any) {
-      console.error('Login error:', error);
-      if (error.code === 'auth/popup-blocked') {
+      console.error('Detailed Google Login error:', error);
+      
+      const errorCode = error.code;
+      const errorMessage = error.message;
+
+      if (errorCode === 'auth/popup-blocked') {
         toast.error('Popup diblokir oleh browser. Silakan izinkan popup untuk situs ini.');
+      } else if (errorCode === 'auth/unauthorized-domain') {
+        toast.error(
+          <div className="space-y-2">
+            <p className="font-bold">Domain Tidak Diizinkan!</p>
+            <p className="text-[10px]">Silakan tambahkan domain ini ke "Authorized Domains" di Firebase Console:</p>
+            <code className="block bg-black/10 p-2 rounded text-[8px] break-all">
+              {window.location.hostname}
+            </code>
+          </div>,
+          { duration: 10000 }
+        );
+      } else if (errorCode === 'auth/operation-not-allowed') {
+        toast.error('Metode login Google belum diaktifkan di Firebase Console.');
+      } else if (errorCode === 'auth/cancelled-popup-request') {
+        // User closed the popup, no need for error toast
       } else {
-        toast.error('Gagal masuk dengan Google.');
+        toast.error(`Gagal masuk dengan Google: ${errorCode || 'Error tidak diketahui'}`);
       }
     } finally {
       setIsLoading(false);

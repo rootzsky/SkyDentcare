@@ -44,6 +44,7 @@ export const db = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestor
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Error Handling Spec for Firestore Operations
 export enum OperationType {
