@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile information and roles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "dentist", "dental_therapist", "admin_staff", "patient"] },
+        "patientId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient identity and social data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nik": { "type": "string" },
+        "medicalRecordNumber": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "address": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "insurance": { "type": "string" },
+        "occupation": { "type": "string" },
+        "education": { "type": "string" },
+        "maritalStatus": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "nik", "medicalRecordNumber"]
+    },
+    "MedicalRecord": {
+      "title": "Medical Record",
+      "description": "Dental hygiene medical record",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "anamnesis": { "type": "object" },
+        "clinicalExam": { "type": "object" },
+        "odontogram": { "type": "object" },
+        "indices": { "type": "object" },
+        "diagnosis": { "type": "array", "items": { "type": "string" } },
+        "treatmentPlan": { "type": "array", "items": { "type": "string" } },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "date", "createdBy"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Patient appointment schedule",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "dentistId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] }
+      },
+      "required": ["patientId", "date", "time", "status"]
+    },
+    "Billing": {
+      "title": "Billing",
+      "description": "Patient billing and payment information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "items": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          } 
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid", "cancelled"] },
+        "paymentMethod": { "type": "string", "enum": ["cash", "transfer", "insurance"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "patientName", "totalAmount", "status"]
+    },
+    "InformedConsent": {
+      "title": "Informed Consent",
+      "description": "Patient consent or refusal for medical procedures",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "procedureName": { "type": "string" },
+        "isAgreed": { "type": "boolean" },
+        "siteMarking": { "type": "array", "items": { "type": "string" } },
+        "patientSignature": { "type": "string" },
+        "doctorSignature": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "patientName", "date", "procedureName", "isAgreed", "patientSignature", "doctorSignature"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patient records"
+    },
+    "/patients/{patientId}/records/{recordId}": {
+      "schema": "MedicalRecord",
+      "description": "Individual medical records for a patient"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointments"
+    },
+    "/billings/{billingId}": {
+      "schema": "Billing",
+      "description": "Billings and payments"
+    },
+    "/informed_consents/{consentId}": {
+      "schema": "InformedConsent",
+      "description": "Informed consents"
+    }
+  }
+}

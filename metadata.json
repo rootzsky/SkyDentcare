@@ -1,0 +1,9 @@
+{
+  "name": "SKY DentCare",
+  "description": "Sistem Informasi Rekam Medis Elektronik (RME) untuk Terapis Gigi dan Mulut",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

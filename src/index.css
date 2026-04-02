@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pop-pink: #ff00ff;
+  --color-pop-blue: #00d4ff;
+  --color-pop-yellow: #ffd700;
+  --color-pop-green: #2ecc71;
+  --color-pop-purple: #9b59b6;
+  --color-pop-orange: #e67e22;
+  
+  --color-pop-bg: #f8f9fa;
+  --color-pop-card: #ffffff;
+  --color-pop-text: #0a0a0a;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-pop-bg text-pop-text font-sans;
+  }
+}
+
+.pop-shadow-pink {
+  box-shadow: 0 10px 30px rgba(255, 0, 255, 0.15);
+}
+
+.pop-shadow-blue {
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
+}
+
+.pop-border-gradient {
+  border: 2px solid transparent;
+  background: linear-gradient(var(--color-pop-card), var(--color-pop-card)) padding-box,
+              linear-gradient(45deg, var(--color-pop-pink), var(--color-pop-blue)) border-box;
+}

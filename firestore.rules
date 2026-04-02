@@ -1,0 +1,262 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: userId (auth.uid)
+// Fields:
+//   - uid: string (required) - User's unique ID
+//   - email: string (required) - User's email
+//   - displayName: string (optional) - User's name
+//   - role: string (required, enum: admin, dentist, dental_therapist, admin_staff)
+//   - createdAt: timestamp (required)
+//
+// Collection: patients
+// Document ID: patientId
+// Fields:
+//   - id: string (required)
+//   - name: string (required, max 100)
+//   - nik: string (required, length 16)
+//   - medicalRecordNumber: string (required)
+//   - birthDate: string (required, ISO 8601)
+//   - gender: string (required, enum: male, female)
+//   - address: string (required, max 500)
+//   - phoneNumber: string (required, max 20)
+//   - insurance: string (optional)
+//   - occupation: string (optional)
+//   - education: string (optional)
+//   - maritalStatus: string (optional)
+//   - createdAt: timestamp (required)
+//   - updatedAt: timestamp (required)
+//
+// Collection: patients/{patientId}/records
+// Document ID: recordId
+// Fields:
+//   - patientId: string (required)
+//   - date: string (required, ISO 8601)
+//   - anamnesis: map (required)
+//   - clinicalExam: map (required)
+//   - odontogram: map (required)
+//   - indices: map (required)
+//   - diagnosis: list (required)
+//   - treatmentPlan: list (required)
+//   - createdBy: string (required)
+//   - createdAt: timestamp (required)
+//
+// Collection: appointments
+// Document ID: appointmentId
+// Fields:
+//   - patientId: string (required)
+//   - patientName: string (required)
+//   - dentistId: string (required)
+//   - date: string (required, ISO 8601)
+//   - time: string (required)
+//   - status: string (required, enum: scheduled, completed, cancelled)
+//
+// Collection: billings
+// Document ID: billingId
+// Fields:
+//   - patientId: string (required)
+//   - patientName: string (required)
+//   - appointmentId: string (optional)
+//   - items: list (required)
+//   - totalAmount: number (required)
+//   - status: string (required, enum: pending, paid, cancelled)
+//   - paymentMethod: string (optional, enum: cash, transfer, insurance)
+//   - createdAt: timestamp (required)
+//   - updatedAt: timestamp (required)
+//
+// Collection: informed_consents
+// Document ID: consentId
+// Fields:
+//   - patientId: string (required)
+//   - patientName: string (required)
+//   - date: string (required, ISO 8601)
+//   - procedureName: string (required)
+//   - isAgreed: boolean (required)
+//   - siteMarking: list (required)
+//   - patientSignature: string (required, data URL)
+//   - doctorSignature: string (required, data URL)
+//   - notes: string (optional)
+//   - createdAt: timestamp (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "rudisetiawan935@gmail.com" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isPatient() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'patient';
+    }
+
+    function isMedicalStaff() {
+      return isAdmin() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dentist', 'dental_therapist']);
+    }
+
+    function isStaff() {
+      return isAdmin() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dentist', 'dental_therapist', 'admin_staff']);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*") || url.matches("^data:image/.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data, userId) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid == userId &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPatient(data) {
+      return hasRequiredFields(['name', 'nik', 'medicalRecordNumber', 'birthDate', 'gender']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.nik is string && data.nik.size() == 16 &&
+             isValidDateString(data.birthDate) &&
+             data.gender in ['male', 'female'] &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidMedicalRecord(data) {
+      return hasRequiredFields(['patientId', 'date', 'anamnesis', 'clinicalExam', 'odontogram', 'indices', 'diagnosis', 'treatmentPlan', 'createdBy', 'createdAt']) &&
+             data.patientId is string &&
+             isValidDateString(data.date) &&
+             data.anamnesis is map &&
+             data.clinicalExam is map &&
+             data.odontogram is map &&
+             data.indices is map &&
+             data.diagnosis is string &&
+             data.treatmentPlan is string &&
+             data.createdBy == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidAppointment(data) {
+      return hasRequiredFields(['patientId', 'patientName', 'date', 'time', 'status']) &&
+             data.patientId is string &&
+             data.patientName is string &&
+             isValidDateString(data.date) &&
+             data.time is string &&
+             data.status in ['scheduled', 'completed', 'cancelled'];
+    }
+
+    function isValidBilling(data) {
+      return hasRequiredFields(['patientId', 'patientName', 'items', 'totalAmount', 'status', 'createdAt', 'updatedAt']) &&
+             data.patientId is string &&
+             data.patientName is string &&
+             data.items is list &&
+             data.totalAmount is number &&
+             data.status in ['pending', 'paid', 'cancelled'] &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['cash', 'transfer', 'insurance']) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidInformedConsent(data) {
+      return hasRequiredFields(['patientId', 'patientName', 'date', 'procedureName', 'isAgreed', 'siteMarking', 'patientSignature', 'doctorSignature', 'createdAt']) &&
+             data.patientId is string &&
+             data.patientName is string &&
+             isValidDateString(data.date) &&
+             data.procedureName is string &&
+             data.isAgreed is bool &&
+             data.siteMarking is list &&
+             isValidUrl(data.patientSignature) &&
+             isValidUrl(data.doctorSignature) &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data, userId) && (request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data, userId) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read: if isStaff() || (isPatient() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId == patientId);
+      allow create: if isStaff() || isPatient();
+      allow update: if isStaff() || (isPatient() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId == patientId);
+      allow delete: if isAdmin();
+
+      match /records/{recordId} {
+        allow read: if isMedicalStaff() || (isPatient() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId == patientId);
+        allow create: if isMedicalStaff();
+        allow update: if isMedicalStaff() && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId);
+      allow create: if isStaff() || isPatient();
+      allow update: if isStaff() || (isPatient() && resource.data.patientId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId);
+      allow delete: if isAdmin();
+    }
+
+    match /billings/{billingId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId);
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /informed_consents/{consentId} {
+      allow read: if isStaff() || (isPatient() && resource.data.patientId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId);
+      allow create: if (isStaff() || isPatient()) && isValidInformedConsent(request.resource.data);
+      allow update: if isStaff() && isValidInformedConsent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
