@@ -4,20 +4,44 @@
  */
 
 import React, { useState } from 'react';
-import { Stethoscope, ShieldCheck, Lock, Mail } from 'lucide-react';
+import { Stethoscope, ShieldCheck, Lock, Mail, UserPlus, LogIn, User as UserIcon, Briefcase } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
-import { auth, googleProvider, signInWithPopup } from '../firebase';
+import { 
+  auth, 
+  googleProvider, 
+  signInWithPopup, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile, 
+  sendEmailVerification,
+  db,
+  doc,
+  setDoc,
+  Timestamp,
+  OperationType,
+  handleFirestoreError
+} from '../firebase';
 import { toast } from 'sonner';
 
 interface LoginProps {
   onLogin: (role: string) => void;
 }
 
+const ROLES = [
+  { value: 'patient', label: 'Pasien' },
+  { value: 'dentist', label: 'Dokter Gigi' },
+  { value: 'dental_therapist', label: 'Terapis Gigi' },
+  { value: 'admin_staff', label: 'Staf Administrasi' },
+];
+
 export function Login({ onLogin }: LoginProps) {
+  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [role, setRole] = useState('patient');
   const [isLoading, setIsLoading] = useState(false);
   const [captcha, setCaptcha] = useState({ a: 0, b: 0, result: 0 });
   const [captchaInput, setCaptchaInput] = useState('');
@@ -48,18 +72,75 @@ export function Login({ onLogin }: LoginProps) {
     try {
       await signInWithPopup(auth, googleProvider);
       toast.success('Berhasil masuk dengan Google');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      toast.error('Gagal masuk dengan Google');
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup diblokir oleh browser. Silakan izinkan popup untuk situs ini.');
+      } else {
+        toast.error('Gagal masuk dengan Google.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCaptcha()) return;
-    toast.info('Login email saat ini dinonaktifkan. Silakan gunakan Google Login.');
+    
+    setIsLoading(true);
+    try {
+      if (isRegistering) {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Update Auth Profile
+        if (displayName) {
+          await updateProfile(user, { displayName });
+        }
+
+        // Create Firestore Profile immediately to ensure role is saved
+        const userDocRef = doc(db, 'users', user.uid);
+        const profileData = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: displayName || user.displayName || 'User',
+          role: role,
+          createdAt: Timestamp.now(),
+        };
+
+        try {
+          await setDoc(userDocRef, profileData);
+        } catch (saveError) {
+          handleFirestoreError(saveError, OperationType.WRITE, `users/${user.uid}`);
+        }
+
+        // Send Email Verification
+        try {
+          await sendEmailVerification(user);
+          toast.success('Pendaftaran berhasil! Email verifikasi telah dikirim.');
+        } catch (emailError) {
+          console.error('Email verification error:', emailError);
+          toast.success('Pendaftaran berhasil! (Gagal mengirim email verifikasi)');
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast.success('Berhasil masuk.');
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Email sudah terdaftar.');
+      } else if (error.code === 'auth/invalid-credential') {
+        toast.error('Email atau kata sandi salah.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Kata sandi terlalu lemah (minimal 6 karakter).');
+      } else {
+        toast.error(isRegistering ? 'Gagal mendaftar.' : 'Gagal masuk.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -84,19 +165,49 @@ export function Login({ onLogin }: LoginProps) {
 
         <Card className="bg-pop-card border-2 border-pop-blue/20 shadow-2xl pop-shadow-blue rounded-[2rem] overflow-hidden">
           <CardHeader className="space-y-2 pt-10 pb-2">
-            <CardTitle className="text-3xl font-black text-center text-pop-text uppercase italic">Selamat Datang</CardTitle>
+            <CardTitle className="text-3xl font-black text-center text-pop-text uppercase italic">
+              {isRegistering ? 'Daftar Akun' : 'Selamat Datang'}
+            </CardTitle>
             <CardDescription className="text-center text-gray-500 font-medium uppercase tracking-widest text-[10px]">
-              Akses sistem dengan akun Google Anda
+              {isRegistering ? 'Lengkapi data untuk membuat akun baru' : 'Akses sistem dengan akun Anda'}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-10 pt-6">
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                {isRegistering && (
+                  <>
+                    <div className="relative group">
+                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-pop-pink group-focus-within:text-pop-blue transition-colors" />
+                      <Input
+                        type="text"
+                        placeholder="Nama Lengkap"
+                        className="pl-12 h-14 bg-gray-50 border-gray-200 text-pop-text placeholder:text-gray-400 focus:border-pop-blue focus:ring-pop-blue/20 rounded-2xl transition-all"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        required={isRegistering}
+                      />
+                    </div>
+                    <div className="relative group">
+                      <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-pop-pink group-focus-within:text-pop-blue transition-colors" />
+                      <select
+                        className="w-full pl-12 h-14 bg-gray-50 border-2 border-gray-200 text-pop-text focus:border-pop-blue focus:ring-pop-blue/20 rounded-2xl transition-all appearance-none font-bold uppercase tracking-widest text-[10px] cursor-pointer"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        required={isRegistering}
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-pop-pink group-focus-within:text-pop-blue transition-colors" />
                   <Input
                     type="email"
-                    placeholder="Email Institusi"
+                    placeholder="Email"
                     className="pl-12 h-14 bg-gray-50 border-gray-200 text-pop-text placeholder:text-gray-400 focus:border-pop-blue focus:ring-pop-blue/20 rounded-2xl transition-all"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -131,24 +242,40 @@ export function Login({ onLogin }: LoginProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-2">
-                <label className="flex items-center space-x-3 cursor-pointer group">
-                  <div className="w-5 h-5 border-2 border-gray-200 rounded bg-gray-50 flex items-center justify-center group-hover:border-pop-pink transition-colors">
-                    <input type="checkbox" className="hidden" />
-                    <div className="w-2 h-2 bg-pop-pink rounded-sm opacity-0 group-hover:opacity-50 transition-opacity"></div>
-                  </div>
-                  <span className="text-sm text-gray-500 group-hover:text-pop-text transition-colors">Ingat saya</span>
-                </label>
-                <a href="#" className="text-sm font-bold text-pop-blue hover:text-pop-pink transition-colors uppercase tracking-tighter">Lupa kata sandi?</a>
-              </div>
+              {!isRegistering && (
+                <div className="flex items-center justify-between px-2">
+                  <label className="flex items-center space-x-3 cursor-pointer group">
+                    <div className="w-5 h-5 border-2 border-gray-200 rounded bg-gray-50 flex items-center justify-center group-hover:border-pop-pink transition-colors">
+                      <input type="checkbox" className="hidden" />
+                      <div className="w-2 h-2 bg-pop-pink rounded-sm opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                    </div>
+                    <span className="text-sm text-gray-500 group-hover:text-pop-text transition-colors">Ingat saya</span>
+                  </label>
+                  <a href="#" className="text-sm font-bold text-pop-blue hover:text-pop-pink transition-colors uppercase tracking-tighter">Lupa kata sandi?</a>
+                </div>
+              )}
 
               <Button 
                 type="submit" 
                 className="w-full h-14 text-lg font-black bg-pop-pink hover:bg-pop-purple text-white rounded-2xl shadow-lg shadow-pop-pink/20 transition-all uppercase italic tracking-wider"
                 disabled={isLoading}
               >
-                {isLoading ? 'Memproses...' : 'Masuk ke Sistem'}
+                {isLoading ? 'Memproses...' : (isRegistering ? 'Daftar Sekarang' : 'Masuk ke Sistem')}
               </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsRegistering(!isRegistering)}
+                  className="text-sm font-bold text-pop-blue hover:text-pop-pink transition-colors uppercase tracking-tighter flex items-center justify-center w-full"
+                >
+                  {isRegistering ? (
+                    <><LogIn className="h-4 w-4 mr-2" /> Sudah punya akun? Masuk</>
+                  ) : (
+                    <><UserPlus className="h-4 w-4 mr-2" /> Belum punya akun? Daftar</>
+                  )}
+                </button>
+              </div>
 
               <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
@@ -193,3 +320,5 @@ export function Login({ onLogin }: LoginProps) {
     </div>
   );
 }
+
+

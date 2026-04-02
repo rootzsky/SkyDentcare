@@ -20,9 +20,11 @@ import { PatientRegistration } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { InformedConsent } from './components/InformedConsent';
 import { Education } from './components/Education';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { auth, onAuthStateChanged, User, doc, getDoc, db, OperationType, handleFirestoreError, setDoc, Timestamp } from './firebase';
+import { auth, onAuthStateChanged, User, doc, getDoc, db, OperationType, handleFirestoreError, setDoc, Timestamp, sendEmailVerification } from './firebase';
+import { Mail } from 'lucide-react';
+import { Button } from './components/ui/Button';
 import { UserProfile } from './types';
 
 export default function App() {
@@ -111,10 +113,41 @@ export default function App() {
     );
   }
 
+  const isEmailVerified = user.emailVerified || user.providerData[0]?.providerId === 'google.com';
+
   return (
     <ErrorBoundary>
       <Layout userProfile={userProfile} onLogout={() => auth.signOut()}>
         <div className="max-w-7xl mx-auto">
+          {!isEmailVerified && (
+            <div className="mb-8 p-6 bg-pop-pink/10 border-2 border-pop-pink/20 rounded-[2rem] flex items-center justify-between animate-pulse">
+              <div className="flex items-center space-x-4">
+                <div className="bg-pop-pink p-3 rounded-xl shadow-lg shadow-pop-pink/20">
+                  <Mail className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-pop-text uppercase italic tracking-tight">Email Belum Terverifikasi</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Silakan periksa kotak masuk Anda untuk memverifikasi akun.</p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-xl font-black uppercase tracking-widest text-[8px] border-pop-pink/30 text-pop-pink hover:bg-pop-pink hover:text-white"
+                onClick={async () => {
+                  try {
+                    await sendEmailVerification(user);
+                    toast.success('Email verifikasi telah dikirim ulang.');
+                  } catch (error) {
+                    toast.error('Gagal mengirim ulang email verifikasi.');
+                  }
+                }}
+              >
+                Kirim Ulang
+              </Button>
+            </div>
+          )}
+
           {currentView === 'dashboard' && (
             userProfile?.role === 'patient' ? <PatientDashboard userProfile={userProfile} /> : <Dashboard />
           )}
