@@ -296,7 +296,7 @@ export function MedicalRecordForm() {
     try {
       // Use getSignaturePad().toDataURL() to avoid the trim-canvas error
       // getSignaturePad() returns the raw signature_pad instance
-      const signature = sigCanvas.current?.getSignaturePad().toDataURL('image/png');
+      const signature = sigCanvas.current?.toDataURL('image/png');
       
       const recordData = {
         ...data,
@@ -482,16 +482,35 @@ export function MedicalRecordForm() {
     const newData = { ...odontogramData, [toothNumber]: status };
     setOdontogramData(newData);
     
-    // Auto-calculate DMF-T
+    // Auto-calculate DMF-T (Permanent) and def-t (Deciduous)
     let d = 0, m = 0, f = 0;
-    Object.values(newData).forEach(s => {
-      if (s === 'caries') d++;
-      if (s === 'missing') m++;
-      if (s === 'filling') f++;
+    let dd = 0, ee = 0, ff = 0;
+
+    Object.entries(newData).forEach(([num, s]) => {
+      const n = parseInt(num);
+      // Permanent teeth: 11-48
+      if (n >= 11 && n <= 48) {
+        if (s === 'caries') d++;
+        if (s === 'missing') m++;
+        if (s === 'filling') f++;
+      }
+      // Deciduous teeth: 51-85
+      else if (n >= 51 && n <= 85) {
+        if (s === 'caries') dd++;
+        if (s === 'missing') ee++; // In deciduous, missing due to caries is 'e'
+        if (s === 'filling') ff++;
+      }
     });
+
     setValue('indices.dmft.d', d);
     setValue('indices.dmft.m', m);
     setValue('indices.dmft.f', f);
+    setValue('indices.dmft.total', d + m + f);
+
+    setValue('indices.def_t.d', dd);
+    setValue('indices.def_t.e', ee);
+    setValue('indices.def_t.f', ff);
+    setValue('indices.def_t.total', dd + ee + ff);
   };
 
   return (
@@ -541,6 +560,25 @@ export function MedicalRecordForm() {
           </div>
         ))}
       </div>
+
+      {/* Error Summary */}
+      {Object.keys(errors).length > 0 && (
+        <div className="bg-pop-pink/10 border-2 border-pop-pink/20 p-6 rounded-[2rem] animate-in slide-in-from-top duration-300">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-8 h-8 rounded-full bg-pop-pink flex items-center justify-center text-white">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <h3 className="text-sm font-black text-pop-pink uppercase tracking-widest">Ada kesalahan pada form:</h3>
+          </div>
+          <ul className="list-disc list-inside space-y-1">
+            {Object.entries(errors).map(([key, error]: [string, any]) => (
+              <li key={key} className="text-[10px] font-bold text-pop-pink uppercase tracking-wider">
+                {key}: {error.message || 'Data tidak valid'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {currentStep === 0 && (
@@ -744,7 +782,7 @@ export function MedicalRecordForm() {
                   </div>
                   <div className="bg-pop-blue/10 p-4 rounded-2xl flex justify-between items-center">
                     <span className="text-[10px] font-black uppercase">Total DMF-T</span>
-                    <span className="text-2xl font-black">{watch('indices.dmft.d') + watch('indices.dmft.m') + watch('indices.dmft.f')}</span>
+                    <span className="text-2xl font-black">{(watch('indices.dmft.d') || 0) + (watch('indices.dmft.m') || 0) + (watch('indices.dmft.f') || 0)}</span>
                   </div>
                 </div>
 

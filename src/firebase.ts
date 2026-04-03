@@ -36,6 +36,7 @@ const app = initializeApp(firebaseConfig);
 // to help with connection issues in some environments.
 const firestoreSettings = {
   experimentalForceLongPolling: true,
+  ignoreUndefinedProperties: true,
 };
 
 export const db = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')

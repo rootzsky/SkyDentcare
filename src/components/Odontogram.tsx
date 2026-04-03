@@ -103,20 +103,43 @@ export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps
   );
 
   return (
-    <div className="space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative">
-      <div className="flex flex-col items-center space-y-8 min-w-[600px]">
-        {/* Upper Teeth */}
+    <div className={cn(
+      "space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative transition-all duration-300",
+      selectedTooth && "pb-64"
+    )}>
+      <div className="flex flex-col items-center space-y-12 min-w-[800px]">
+        {/* Upper Permanent Teeth */}
         <div className="flex space-x-8">
-          {renderToothRow(TOOTH_NUMBERS.UPPER_RIGHT, 'Kanan Atas')}
+          {renderToothRow(TOOTH_NUMBERS.UPPER_RIGHT, 'Kanan Atas (T)')}
           <div className="w-px h-16 bg-gray-100 self-end" />
-          {renderToothRow(TOOTH_NUMBERS.UPPER_LEFT, 'Kiri Atas')}
+          {renderToothRow(TOOTH_NUMBERS.UPPER_LEFT, 'Kiri Atas (T)')}
         </div>
 
-        {/* Lower Teeth */}
+        {/* Deciduous Teeth */}
+        <div className="flex flex-col items-center space-y-4 bg-gray-50/50 p-6 rounded-[2rem] border-2 border-gray-100">
+          <span className="text-[10px] font-black text-pop-blue uppercase tracking-[0.3em] italic">Gigi Susu (Deciduous)</span>
+          <div className="flex space-x-12">
+            <div className="flex space-x-8">
+              {renderToothRow(TOOTH_NUMBERS.DECIDUOUS_UPPER_RIGHT, 'RA Kanan')}
+              <div className="w-px h-12 bg-gray-200 self-end" />
+              {renderToothRow(TOOTH_NUMBERS.DECIDUOUS_UPPER_LEFT, 'RA Kiri')}
+            </div>
+          </div>
+          <div className="w-full h-px bg-gray-200 my-2" />
+          <div className="flex space-x-12">
+            <div className="flex space-x-8">
+              {renderToothRow(TOOTH_NUMBERS.DECIDUOUS_LOWER_RIGHT, 'RB Kanan')}
+              <div className="w-px h-12 bg-gray-200 self-start" />
+              {renderToothRow(TOOTH_NUMBERS.DECIDUOUS_LOWER_LEFT, 'RB Kiri')}
+            </div>
+          </div>
+        </div>
+
+        {/* Lower Permanent Teeth */}
         <div className="flex space-x-8">
-          {renderToothRow(TOOTH_NUMBERS.LOWER_RIGHT, 'Kanan Bawah')}
+          {renderToothRow(TOOTH_NUMBERS.LOWER_RIGHT, 'Kanan Bawah (T)')}
           <div className="w-px h-16 bg-gray-100 self-start" />
-          {renderToothRow(TOOTH_NUMBERS.LOWER_LEFT, 'Kiri Bawah')}
+          {renderToothRow(TOOTH_NUMBERS.LOWER_LEFT, 'Kiri Bawah (T)')}
         </div>
       </div>
 
