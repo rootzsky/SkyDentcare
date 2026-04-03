@@ -11,11 +11,12 @@ export const TOOTH_NUMBERS = {
 };
 
 export const TOOTH_STATUS_LABELS = {
-  healthy: 'Sehat',
-  caries: 'Karies',
-  filling: 'Tambalan',
-  missing: 'Hilang',
-  impaction: 'Impaksi',
+  healthy: 'Sehat (S)',
+  caries: 'Karies (D)',
+  filling: 'Tambalan (F)',
+  missing: 'Hilang (M)',
+  impaction: 'Impaksi (I)',
+  prosthesis: 'Protesa (P)',
 };
 
 export const TOOTH_STATUS_COLORS = {
@@ -24,6 +25,7 @@ export const TOOTH_STATUS_COLORS = {
   filling: 'bg-blue-100 border-blue-500 text-blue-700',
   missing: 'bg-gray-100 border-gray-500 text-gray-700',
   impaction: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+  prosthesis: 'bg-purple-100 border-purple-500 text-purple-700',
 };
 
 export const ROLES = {

@@ -22,6 +22,31 @@
   }
 }
 
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  header, aside, nav, button {
+    display: none !important;
+  }
+  
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}
+
 .pop-shadow-pink {
   box-shadow: 0 10px 30px rgba(255, 0, 255, 0.15);
 }

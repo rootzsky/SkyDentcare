@@ -130,7 +130,7 @@ export interface ClinicalExam {
   };
 }
 
-export type ToothStatus = 'healthy' | 'caries' | 'filling' | 'missing' | 'impaction';
+export type ToothStatus = 'healthy' | 'caries' | 'filling' | 'missing' | 'impaction' | 'prosthesis';
 
 export interface Odontogram {
   [toothNumber: string]: ToothStatus;

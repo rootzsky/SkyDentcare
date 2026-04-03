@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Modal } from './ui/Modal';
 import { Odontogram } from './Odontogram';
 import { DiagnosisGuidelines } from './DiagnosisGuidelines';
+import { PrintableRecord } from './PrintableRecord';
 import { ToothStatus, Patient, TreatmentRecord } from '@/src/types';
 import { cn } from '@/src/lib/utils';
 import { db, collection, onSnapshot, addDoc, OperationType, handleFirestoreError, auth, Timestamp } from '../firebase';
@@ -150,7 +151,7 @@ const medicalRecordSchema = z.object({
     cpitn: z.number(),
     plaqueIndex: z.number(),
   }),
-  odontogram: z.record(z.string(), z.enum(['healthy', 'caries', 'filling', 'missing', 'impaction'])),
+  odontogram: z.record(z.string(), z.enum(['healthy', 'caries', 'filling', 'missing', 'impaction', 'prosthesis'])),
   periodontalStatus: z.record(z.string(), z.object({
     bleedingOnProbing: z.boolean(),
     attachmentLossGt1mm: z.boolean(),
@@ -176,7 +177,7 @@ const medicalRecordSchema = z.object({
   recommendations: z.string().optional(),
 });
 
-type MedicalRecordFormData = Omit<TreatmentRecord, 'id' | 'date' | 'createdBy' | 'createdAt'>;
+type MedicalRecordFormData = z.infer<typeof medicalRecordSchema>;
 
 const steps = [
   { id: 'patient', label: 'Pilih Pasien', icon: Search },
@@ -196,7 +197,7 @@ export function MedicalRecordForm() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const signatureRef = useState<SignatureCanvas | null>(null)[0];
+  const [submittedRecord, setSubmittedRecord] = useState<any>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
 
   const {
@@ -293,7 +294,9 @@ export function MedicalRecordForm() {
 
   const onSubmit = async (data: MedicalRecordFormData) => {
     try {
-      const signature = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+      // Use getSignaturePad().toDataURL() to avoid the trim-canvas error
+      // getSignaturePad() returns the raw signature_pad instance
+      const signature = sigCanvas.current?.getSignaturePad().toDataURL('image/png');
       
       const recordData = {
         ...data,
@@ -304,13 +307,24 @@ export function MedicalRecordForm() {
         createdAt: Timestamp.now(),
       };
 
-      await addDoc(collection(db, 'patients', data.patientId, 'records'), recordData);
+      console.log('Saving record data:', recordData);
+      
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, 'patients', data.patientId, 'records'), recordData);
+      console.log('Record saved with ID:', docRef.id);
+
+      setSubmittedRecord(recordData);
       toast.success('Rekam medis berhasil disimpan');
       setCurrentStep(steps.length - 1);
     } catch (error) {
+      console.error('Error in onSubmit:', error);
       handleFirestoreError(error, OperationType.CREATE, `patients/${data.patientId}/records`);
-      toast.error('Gagal menyimpan rekam medis');
+      toast.error('Gagal menyimpan rekam medis. Periksa koneksi atau izin.');
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
@@ -914,7 +928,13 @@ export function MedicalRecordForm() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row justify-center gap-6">
-                <Button variant="ghost" className="rounded-2xl px-10 py-8 font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 text-pop-text hover:bg-gray-50 bg-white shadow-lg shadow-gray-100/50">Cetak Laporan</Button>
+                <Button 
+                  onClick={handlePrint}
+                  variant="ghost" 
+                  className="rounded-2xl px-10 py-8 font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 text-pop-text hover:bg-gray-50 bg-white shadow-lg shadow-gray-100/50"
+                >
+                  Cetak Laporan
+                </Button>
                 <Button onClick={() => window.location.href = '#dashboard'} variant="primary" className="rounded-2xl px-10 py-8 font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-pop-blue/30">
                   Kembali ke Dashboard
                 </Button>
@@ -964,6 +984,10 @@ export function MedicalRecordForm() {
       >
         <DiagnosisGuidelines />
       </Modal>
+
+      {submittedRecord && selectedPatient && (
+        <PrintableRecord patient={selectedPatient} record={submittedRecord} />
+      )}
     </div>
   );
 }

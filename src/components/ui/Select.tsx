@@ -23,8 +23,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50',
-            error && 'border-red-500 focus-visible:ring-red-500',
+            'flex h-12 w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-2 text-sm text-pop-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pop-blue focus-visible:border-pop-blue transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 appearance-none',
+            error && 'border-rose-500 focus-visible:ring-rose-500',
             className
           )}
           {...props}

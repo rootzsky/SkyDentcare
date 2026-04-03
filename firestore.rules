@@ -172,8 +172,8 @@ service cloud.firestore {
              data.clinicalExam is map &&
              data.odontogram is map &&
              data.indices is map &&
-             data.diagnosis is string &&
-             data.treatmentPlan is string &&
+             data.diagnosis is list &&
+             data.treatmentPlan is list &&
              data.createdBy == request.auth.uid &&
              data.createdAt is timestamp;
     }
@@ -232,8 +232,8 @@ service cloud.firestore {
 
       match /records/{recordId} {
         allow read: if isMedicalStaff() || (isPatient() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.patientId == patientId);
-        allow create: if isMedicalStaff();
-        allow update: if isMedicalStaff() && request.resource.data.createdBy == resource.data.createdBy;
+        allow create: if isMedicalStaff() && isValidMedicalRecord(request.resource.data);
+        allow update: if isMedicalStaff() && request.resource.data.createdBy == resource.data.createdBy && isValidMedicalRecord(request.resource.data);
         allow delete: if isAdmin();
       }
     }
