@@ -158,7 +158,9 @@ const medicalRecordSchema = z.object({
     pocketGt4mm: z.boolean(),
     extrinsicStains: z.boolean(),
     calculusScore: z.number(),
-  })),
+  })).optional(),
+  periodontalNotes: z.string().optional(),
+  calculusNotes: z.string().optional(),
   diagnosis: z.array(z.object({
     unmetNeeds: z.string().min(1, 'Kebutuhan wajib diisi'),
     cause: z.string().min(1, 'Penyebab wajib diisi'),
@@ -282,6 +284,14 @@ export function MedicalRecordForm() {
   }, []);
 
   const patientId = watch('patientId');
+  const watchOHIS_DI = watch('indices.ohis.di');
+  const watchOHIS_CI = watch('indices.ohis.ci');
+
+  useEffect(() => {
+    const total = parseFloat(((watchOHIS_DI || 0) + (watchOHIS_CI || 0)).toFixed(1));
+    setValue('indices.ohis.total', total);
+  }, [watchOHIS_DI, watchOHIS_CI, setValue]);
+
   useEffect(() => {
     const patient = patients.find(p => p.id === patientId);
     setSelectedPatient(patient || null);
@@ -294,9 +304,13 @@ export function MedicalRecordForm() {
 
   const onSubmit = async (data: MedicalRecordFormData) => {
     try {
+      // Ensure totals are calculated before saving
+      data.indices.ohis.total = parseFloat(((data.indices.ohis.di || 0) + (data.indices.ohis.ci || 0)).toFixed(1));
+      data.indices.dmft.total = (data.indices.dmft.d || 0) + (data.indices.dmft.m || 0) + (data.indices.dmft.f || 0);
+      data.indices.def_t.total = (data.indices.def_t.d || 0) + (data.indices.def_t.e || 0) + (data.indices.def_t.f || 0);
+
       // Use getSignaturePad().toDataURL() to avoid the trim-canvas error
-      // getSignaturePad() returns the raw signature_pad instance
-      const signature = sigCanvas.current?.toDataURL('image/png');
+      const signature = sigCanvas.current?.isEmpty() ? null : sigCanvas.current?.toDataURL('image/png');
       
       const recordData = {
         ...data,
@@ -799,7 +813,7 @@ export function MedicalRecordForm() {
                   </div>
                   <div className="bg-pop-pink/10 p-4 rounded-2xl flex justify-between items-center">
                     <span className="text-[10px] font-black uppercase">Total def-t</span>
-                    <span className="text-2xl font-black">{watch('indices.def_t.d') + watch('indices.def_t.e') + watch('indices.def_t.f')}</span>
+                    <span className="text-2xl font-black">{watch('indices.def_t.total')}</span>
                   </div>
                 </div>
               </div>
@@ -815,7 +829,7 @@ export function MedicalRecordForm() {
                 </div>
                 <div className="bg-pop-purple/10 p-4 rounded-2xl flex justify-between items-center">
                   <span className="text-[10px] font-black uppercase">Total OHI-S</span>
-                  <span className="text-2xl font-black">{(watch('indices.ohis.di') + watch('indices.ohis.ci')).toFixed(1)}</span>
+                  <span className="text-2xl font-black">{watch('indices.ohis.total')}</span>
                 </div>
               </div>
 
@@ -840,8 +854,16 @@ export function MedicalRecordForm() {
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Textarea label="Catatan Periodontal (Bleeding, Pocket, Attachment Loss)" placeholder="Contoh: Gigi 16 Pocket 5mm, BOP+" />
-                <Textarea label="Catatan Kalkulus & Extrinsic Stains" placeholder="Contoh: Kalkulus supragingival pada lingual gigi anterior bawah" />
+                <Textarea 
+                  label="Catatan Periodontal (Bleeding, Pocket, Attachment Loss)" 
+                  placeholder="Contoh: Gigi 16 Pocket 5mm, BOP+" 
+                  {...register('periodontalNotes')}
+                />
+                <Textarea 
+                  label="Catatan Kalkulus & Extrinsic Stains" 
+                  placeholder="Contoh: Kalkulus supragingival pada lingual gigi anterior bawah" 
+                  {...register('calculusNotes')}
+                />
               </div>
             </CardContent>
           </Card>
@@ -929,11 +951,14 @@ export function MedicalRecordForm() {
               <div className="space-y-8">
                 <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em]">Tanda Tangan Pasien</h3>
                 <div className="bg-gray-50 rounded-3xl border-2 border-gray-100 p-8 flex flex-col items-center space-y-4">
-                  <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-inner">
+                  <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-inner w-full max-w-[400px]">
                     <SignatureCanvas 
                       ref={sigCanvas}
                       penColor='black'
-                      canvasProps={{width: 400, height: 200, className: 'sigCanvas'}}
+                      canvasProps={{
+                        className: 'sigCanvas w-full h-[200px]',
+                        style: { width: '100%', height: '200px' }
+                      }}
                     />
                   </div>
                   <Button 

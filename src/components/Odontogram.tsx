@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/src/lib/utils';
 import { TOOTH_NUMBERS, TOOTH_STATUS_COLORS, TOOTH_STATUS_LABELS } from '@/src/constants';
 import { ToothStatus } from '@/src/types';
@@ -16,6 +16,18 @@ interface OdontogramProps {
 
 export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps) {
   const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
+  const odontogramRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (odontogramRef.current && !odontogramRef.current.contains(event.target as Node)) {
+        setSelectedTooth(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleToothClick = (toothNumber: string) => {
     if (readOnly) return;
@@ -103,10 +115,13 @@ export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps
   );
 
   return (
-    <div className={cn(
-      "space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative transition-all duration-300",
-      selectedTooth && "pb-64"
-    )}>
+    <div 
+      ref={odontogramRef}
+      className={cn(
+        "space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative transition-all duration-300",
+        selectedTooth && "pb-64"
+      )}
+    >
       <div className="flex flex-col items-center space-y-12 min-w-[800px]">
         {/* Upper Permanent Teeth */}
         <div className="flex space-x-8">
