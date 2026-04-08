@@ -13,14 +13,18 @@ import {
   ArrowRight,
   User,
   Heart,
-  Stethoscope
+  Stethoscope,
+  Plus
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
-import { db, collection, query, where, onSnapshot, OperationType, handleFirestoreError } from '../firebase';
+import { db, collection, query, where, onSnapshot, OperationType, handleFirestoreError, addDoc } from '../firebase';
 import { UserProfile, Patient, Appointment } from '../types';
 import { Badge } from './ui/Badge';
+import { toast } from 'sonner';
+import { Input } from './ui/Input';
+import { Modal } from './ui/Modal';
 
 interface PatientDashboardProps {
   userProfile: UserProfile;
@@ -30,6 +34,37 @@ export function PatientDashboard({ userProfile }: PatientDashboardProps) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patientData, setPatientData] = useState<Patient | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [followUpTime, setFollowUpTime] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreateFollowUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userProfile.patientId || !followUpDate || !followUpTime) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'appointments'), {
+        patientId: userProfile.patientId,
+        patientName: userProfile.displayName,
+        date: followUpDate,
+        time: followUpTime,
+        status: 'scheduled',
+        type: 'follow-up',
+        createdAt: new Date().toISOString()
+      });
+      toast.success('Kunjungan berlanjut berhasil dijadwalkan!');
+      setIsFollowUpModalOpen(false);
+      setFollowUpDate('');
+      setFollowUpTime('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'appointments');
+      toast.error('Gagal menjadwalkan kunjungan.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (userProfile.patientId) {
@@ -162,7 +197,11 @@ export function PatientDashboard({ userProfile }: PatientDashboardProps) {
                         <Calendar className="h-10 w-10 text-gray-200" />
                       </div>
                       <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-[10px] italic">Belum Ada Jadwal</p>
-                      <Button variant="outline" className="rounded-2xl border-pop-blue text-pop-blue hover:bg-pop-blue/5 font-black uppercase tracking-widest text-[10px] px-8">
+                      <Button 
+                        onClick={() => setIsFollowUpModalOpen(true)}
+                        variant="outline" 
+                        className="rounded-2xl border-pop-blue text-pop-blue hover:bg-pop-blue/5 font-black uppercase tracking-widest text-[10px] px-8"
+                      >
                         Buat Janji Temu
                       </Button>
                     </div>
@@ -175,14 +214,18 @@ export function PatientDashboard({ userProfile }: PatientDashboardProps) {
               <Card className="border-2 border-gray-100 bg-white rounded-[3rem] overflow-hidden shadow-xl shadow-gray-200/50 group hover:border-pop-blue/30 transition-all">
                 <CardContent className="p-10 space-y-6">
                   <div className="h-16 w-16 bg-pop-blue/10 rounded-2xl flex items-center justify-center text-pop-blue border-2 border-pop-blue/20 group-hover:scale-110 transition-transform">
-                    <ClipboardList className="h-8 w-8" />
+                    <Plus className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-pop-text uppercase italic tracking-tight">Riwayat Medis</h3>
-                    <p className="text-xs text-gray-400 font-medium mt-2 leading-relaxed uppercase tracking-widest">Lihat catatan pemeriksaan dan diagnosa Anda sebelumnya.</p>
+                    <h3 className="text-2xl font-black text-pop-text uppercase italic tracking-tight">Kunjungan Berlanjut</h3>
+                    <p className="text-xs text-gray-400 font-medium mt-2 leading-relaxed uppercase tracking-widest">Jadwalkan kunjungan berikutnya untuk perawatan rutin Anda.</p>
                   </div>
-                  <Button variant="ghost" className="w-full justify-between text-pop-blue font-black uppercase tracking-widest text-[10px] p-0 hover:bg-transparent">
-                    Lihat Riwayat <ArrowRight className="h-4 w-4" />
+                  <Button 
+                    onClick={() => setIsFollowUpModalOpen(true)}
+                    variant="ghost" 
+                    className="w-full justify-between text-pop-blue font-black uppercase tracking-widest text-[10px] p-0 hover:bg-transparent"
+                  >
+                    Jadwalkan Sekarang <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
               </Card>
@@ -254,6 +297,49 @@ export function PatientDashboard({ userProfile }: PatientDashboardProps) {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={isFollowUpModalOpen}
+        onClose={() => setIsFollowUpModalOpen(false)}
+        title="Jadwalkan Kunjungan Berlanjut"
+      >
+        <form onSubmit={handleCreateFollowUp} className="space-y-6 p-4">
+          <div className="space-y-4">
+            <Input 
+              type="date" 
+              label="Tanggal Kunjungan" 
+              value={followUpDate}
+              onChange={(e) => setFollowUpDate(e.target.value)}
+              required
+            />
+            <Input 
+              type="time" 
+              label="Waktu Kunjungan" 
+              value={followUpTime}
+              onChange={(e) => setFollowUpTime(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={() => setIsFollowUpModalOpen(false)}
+              className="rounded-xl font-bold uppercase tracking-widest text-[10px]"
+            >
+              Batal
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              variant="primary" 
+              className="rounded-xl font-black uppercase tracking-widest text-[10px] px-8 shadow-lg shadow-pop-blue/20"
+            >
+              {isSubmitting ? 'Menyimpan...' : 'Jadwalkan'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -155,9 +155,9 @@ export default function App() {
           {currentView === 'medical-records' && <MedicalRecordForm />}
           {currentView === 'reports' && <Reports />}
           {currentView === 'appointments' && <Appointments />}
-          {currentView === 'security' && userProfile?.role === 'admin' && <Security />}
-          {currentView === 'settings' && userProfile?.role === 'admin' && <Settings />}
-          {currentView === 'master-data' && userProfile?.role === 'admin' && <MasterData />}
+          {currentView === 'security' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <Security />}
+          {currentView === 'settings' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <Settings />}
+          {currentView === 'master-data' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <MasterData />}
           {currentView === 'diagnosis-guidelines' && <DiagnosisGuidelines />}
           {currentView === 'billing' && <BillingList />}
           {currentView === 'informed-consent' && <InformedConsent />}

@@ -104,6 +104,12 @@ service cloud.firestore {
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
+    function isSupervisor() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor';
+    }
+
     function isPatient() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -111,13 +117,13 @@ service cloud.firestore {
     }
 
     function isMedicalStaff() {
-      return isAdmin() || (isAuthenticated() && 
+      return isAdmin() || isSupervisor() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dentist', 'dental_therapist']);
     }
 
     function isStaff() {
-      return isAdmin() || (isAuthenticated() && 
+      return isAdmin() || isSupervisor() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['dentist', 'dental_therapist', 'admin_staff']);
     }
@@ -150,7 +156,7 @@ service cloud.firestore {
       return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
              data.uid == userId &&
              isValidEmail(data.email) &&
-             data.role in ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient'] &&
+             data.role in ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] &&
              data.createdAt is timestamp;
     }
 

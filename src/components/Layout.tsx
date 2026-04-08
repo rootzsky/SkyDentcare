@@ -36,18 +36,18 @@ export function Layout({ children, userProfile, onLogout }: LayoutProps) {
   const userRole = userProfile?.role || 'guest';
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '#dashboard', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient'] },
-    { icon: Users, label: 'Data Pasien', href: '#patients', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff'] },
-    { icon: ClipboardList, label: 'Rekam Medis', href: '#medical-records', roles: ['admin', 'dentist', 'dental_therapist'] },
-    { icon: Calendar, label: 'Jadwal', href: '#appointments', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff'] },
-    { icon: FileText, label: 'Informed Consent', href: '#informed-consent', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff'] },
-    { icon: Video, label: 'Edukasi Gigi', href: '#education', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient'] },
-    { icon: Receipt, label: 'Billing', href: '#billing', roles: ['admin', 'admin_staff'] },
-    { icon: BookOpen, label: 'Pedoman Diagnosa', href: '#diagnosis-guidelines', roles: ['admin', 'dentist', 'dental_therapist'] },
-    { icon: BarChart3, label: 'Laporan', href: '#reports', roles: ['admin', 'dentist'] },
-    { icon: Database, label: 'Data Master', href: '#master-data', roles: ['admin'] },
-    { icon: ShieldCheck, label: 'Keamanan', href: '#security', roles: ['admin'] },
-    { icon: Settings, label: 'Pengaturan', href: '#settings', roles: ['admin'] },
+    {icon: LayoutDashboard, label: 'Dashboard', href: '#dashboard', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
+    {icon: Users, label: 'Data Pasien', href: '#patients', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: ClipboardList, label: 'Rekam Medis', href: '#medical-records', roles: ['admin', 'dentist', 'dental_therapist', 'supervisor'] },
+    {icon: Calendar, label: 'Jadwal', href: '#appointments', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: FileText, label: 'Informed Consent', href: '#informed-consent', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: Video, label: 'Edukasi Gigi', href: '#education', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
+    {icon: Receipt, label: 'Billing', href: '#billing', roles: ['admin', 'admin_staff', 'supervisor'] },
+    {icon: BookOpen, label: 'Pedoman Diagnosa', href: '#diagnosis-guidelines', roles: ['admin', 'dentist', 'dental_therapist', 'supervisor'] },
+    {icon: BarChart3, label: 'Laporan', href: '#reports', roles: ['admin', 'dentist', 'supervisor'] },
+    {icon: Database, label: 'Data Master', href: '#master-data', roles: ['admin', 'supervisor'] },
+    {icon: ShieldCheck, label: 'Keamanan', href: '#security', roles: ['admin', 'supervisor'] },
+    {icon: Settings, label: 'Pengaturan', href: '#settings', roles: ['admin', 'supervisor'] },
     { icon: ClipboardList, label: 'Pendaftaran', href: '#registration', roles: ['patient'] },
   ];
 

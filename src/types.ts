@@ -5,7 +5,7 @@
 
 import { Timestamp } from 'firebase/firestore';
 
-export type UserRole = 'admin' | 'dentist' | 'dental_therapist' | 'admin_staff' | 'patient';
+export type UserRole = 'admin' | 'dentist' | 'dental_therapist' | 'admin_staff' | 'patient' | 'supervisor';
 
 export interface UserProfile {
   uid: string;
@@ -29,6 +29,27 @@ export interface Patient {
   occupation: string;
   education: string;
   maritalStatus: string;
+  religion?: string;
+  placeOfBirth?: string;
+  nationality?: string;
+  bloodType?: string;
+  dependents?: {
+    children: number;
+    others: number;
+  };
+  weight?: number;
+  height?: number;
+  dentistInfo?: {
+    name: string;
+    phone: string;
+    address: string;
+  };
+  doctorInfo?: {
+    name: string;
+    phone: string;
+    address: string;
+  };
+  referralSource?: string;
   incomeRange?: string;
   hobbies?: string;
   createdAt: Timestamp | string;
@@ -36,6 +57,9 @@ export interface Patient {
 }
 
 export interface Anamnesis {
+  isHealthy: boolean;
+  past5YearsHistory: string;
+  bloodClottingDisorder: string;
   mainComplaint: string;
   currentIllnessHistory: string;
   pastIllnessHistory: string;
@@ -47,7 +71,8 @@ export interface Anamnesis {
     others: string;
   };
   medicationHistory: {
-    currentMedication: string;
+    isTakingMedication: boolean;
+    medicationName: string;
     purpose: string;
     sideEffects: string;
     positiveEffects: string;
@@ -57,29 +82,47 @@ export interface Anamnesis {
   socialHistory: string;
   dentalHistory: {
     reasonForVisit: string;
-    whatTheyWantToKnow: string;
-    xrayLast2Years: string;
-    previousTreatmentComplications: string;
+    whatTheyWantToKnow: string[];
+    xrayLast2Years: {
+      done: boolean;
+      type?: string;
+    };
+    previousTreatmentComplications: {
+      experienced: boolean;
+      explanation?: string;
+    };
     previousVisitOpinion: string;
     dentalHealthGeneralHealthOpinion: string;
     symptoms: string[];
-    teethGrinding: string;
-    breathAppearanceAnxiety: string;
-    injuries: string;
+    teethGrinding: {
+      experienced: boolean;
+      biteGuard?: boolean;
+    };
+    breathAppearanceAnxiety: {
+      anxious: boolean;
+      concerns?: string[];
+    };
+    injuries: {
+      experienced: boolean;
+      explanation?: string;
+    };
     previousTreatments: string[];
   };
   selfCareHistory: {
     toolsUsed: string[];
-    toothpasteType: string[];
-    brushingFrequency: string;
-    brushingTime: string;
-    schedulingDifficulty: string;
-    oralCancerCheckRegularity: string;
+    toothpasteBenefits: string[];
+    brushingDuration: number;
+    flossingDuration: number;
+    brushingFrequency: number;
+    flossingFrequency: number;
+    schedulingDifficulty: boolean;
+    oralCancerCheckRegularity: boolean;
     habits: string[];
   };
   snackingHabits: {
-    [key: string]: string; // e.g., "candy": "frequent"
-  };
+    item: string;
+    frequency: string;
+  }[];
   dentalBeliefs: {
     cavityLikelihood: string;
     preventionImportance: string;
@@ -97,36 +140,16 @@ export interface VitalSigns {
 export interface ClinicalExam {
   vitalSigns: VitalSigns;
   extraOral: {
-    face: string;
-    neck: string;
-    vermilionBorders: string;
-    parotidGlands: string;
-    lymphNodes: string;
-    anteriorCervical: string;
-    posteriorCervical: string;
-    submental: string;
-    submandibular: string;
-    supraclavicular: string;
+    [key: string]: {
+      status: 'normal' | 'other';
+      notes?: string;
+    };
   };
   intraOral: {
-    labialMucosa: string;
-    labialVestibules: string;
-    anteriorGingivae: string;
-    buccalVestibules: string;
-    buccalGingivae: string;
-    tongueDorsal: string;
-    tongueVentral: string;
-    tongueLateral: string;
-    lingualTonsils: string;
-    floorOfMouth: string;
-    lingualGingivae: string;
-    tonsillarPillars: string;
-    pharyngealWall: string;
-    softPalate: string;
-    uvula: string;
-    hardPalate: string;
-    palatalGingivae: string;
-    submandibularGlands: string;
+    [key: string]: {
+      status: 'normal' | 'other';
+      notes?: string;
+    };
   };
 }
 
@@ -155,7 +178,18 @@ export interface DentalIndices {
     total: number;
   };
   cpitn: number;
-  plaqueIndex: number;
+  plaqueControl: {
+    score: number;
+    category: string;
+    grid: {
+      [toothNumber: string]: {
+        distal: boolean;
+        mesial: boolean;
+        buccal: boolean;
+        lingual: boolean;
+      };
+    };
+  };
 }
 
 export interface PeriodontalStatus {
@@ -182,7 +216,23 @@ export interface TreatmentRecord {
     cause: string;
     signsAndSymptoms: string;
   }[];
+  humanNeeds: {
+    healthRiskProtection: string;
+    freedomFromFear: string;
+    wholesomeFacialImage: string;
+    skinMucousMembraneIntegrity: string;
+    biologicallySoundDentition: string;
+    conceptualizationProblemSolving: string;
+    freedomFromPain: string;
+    responsibilityForOralHealth: string;
+  };
   treatmentPlan: string[];
+  dentalHygieneInterventions: string[];
+  clientCenteredGoals?: {
+    goal: string;
+    timeline: string;
+    criteria: string;
+  }[];
   actions: {
     date: string;
     type: string;

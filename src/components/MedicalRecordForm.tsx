@@ -21,7 +21,8 @@ import {
   Plus,
   Trash2,
   Sparkles,
-  Eraser
+  Eraser,
+  Target
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -43,37 +44,19 @@ const medicalRecordSchema = z.object({
   patientId: z.string().min(1, 'Pasien wajib dipilih'),
   anamnesis: z.object({
     mainComplaint: z.string().min(1, 'Keluhan utama wajib diisi'),
-    currentIllnessHistory: z.string(),
-    pastIllnessHistory: z.string(),
-    allergyHistory: z.object({
-      food: z.string(),
-      drugs: z.string(),
-      anesthesia: z.string(),
-      weather: z.string(),
-      others: z.string(),
-    }),
-    medicationHistory: z.object({
-      currentMedication: z.string(),
-      purpose: z.string(),
-      sideEffects: z.string(),
-      positiveEffects: z.string(),
-      dosageIssues: z.string(),
-      regularity: z.string(),
-    }),
-    socialHistory: z.string(),
-    dentalHistory: z.object({
-      reasonForVisit: z.string(),
-      whatTheyWantToKnow: z.string(),
-      xrayLast2Years: z.string(),
-      previousTreatmentComplications: z.string(),
-      previousVisitOpinion: z.string(),
-      dentalHealthGeneralHealthOpinion: z.string(),
-      symptoms: z.array(z.string()),
-      teethGrinding: z.string(),
-      breathAppearanceAnxiety: z.string(),
-      injuries: z.string(),
-      previousTreatments: z.array(z.string()),
-    }),
+    isHealthy: z.boolean(),
+    isTakingMedication: z.boolean(),
+    experienced: z.boolean(),
+    lastDentalVisit: z.string(),
+    dentalVisitReason: z.string(),
+    previousTreatmentComplications: z.string(),
+    previousVisitOpinion: z.string(),
+    dentalHealthGeneralHealthOpinion: z.string(),
+    symptoms: z.array(z.string()),
+    teethGrinding: z.string(),
+    breathAppearanceAnxiety: z.string(),
+    injuries: z.string(),
+    previousTreatments: z.array(z.string()),
     selfCareHistory: z.object({
       toolsUsed: z.array(z.string()),
       toothpasteType: z.array(z.string()),
@@ -97,38 +80,8 @@ const medicalRecordSchema = z.object({
       pulse: z.string(),
       respiration: z.string(),
     }),
-    extraOral: z.object({
-      face: z.string(),
-      neck: z.string(),
-      vermilionBorders: z.string(),
-      parotidGlands: z.string(),
-      lymphNodes: z.string(),
-      anteriorCervical: z.string(),
-      posteriorCervical: z.string(),
-      submental: z.string(),
-      submandibular: z.string(),
-      supraclavicular: z.string(),
-    }),
-    intraOral: z.object({
-      labialMucosa: z.string(),
-      labialVestibules: z.string(),
-      anteriorGingivae: z.string(),
-      buccalVestibules: z.string(),
-      buccalGingivae: z.string(),
-      tongueDorsal: z.string(),
-      tongueVentral: z.string(),
-      tongueLateral: z.string(),
-      lingualTonsils: z.string(),
-      floorOfMouth: z.string(),
-      lingualGingivae: z.string(),
-      tonsillarPillars: z.string(),
-      pharyngealWall: z.string(),
-      softPalate: z.string(),
-      uvula: z.string(),
-      hardPalate: z.string(),
-      palatalGingivae: z.string(),
-      submandibularGlands: z.string(),
-    }),
+    extraOral: z.record(z.string(), z.string()),
+    intraOral: z.record(z.string(), z.string()),
   }),
   indices: z.object({
     dmft: z.object({
@@ -147,6 +100,10 @@ const medicalRecordSchema = z.object({
       di: z.number(),
       ci: z.number(),
       total: z.number(),
+    }),
+    plaqueControl: z.object({
+      grid: z.record(z.string(), z.array(z.boolean())),
+      score: z.number(),
     }),
     cpitn: z.number(),
     plaqueIndex: z.number(),
@@ -167,6 +124,12 @@ const medicalRecordSchema = z.object({
     signsAndSymptoms: z.string().min(1, 'Tanda & gejala wajib diisi'),
   })).min(1, 'Minimal satu diagnosis wajib diisi'),
   treatmentPlan: z.array(z.string()).min(1, 'Rencana perawatan wajib diisi'),
+  interventions: z.object({
+    preventive: z.array(z.string()),
+    educational: z.array(z.string()),
+    therapeutic: z.array(z.string()),
+    referral: z.array(z.string()),
+  }).optional(),
   actions: z.array(z.object({
     date: z.string(),
     type: z.string(),
@@ -175,6 +138,11 @@ const medicalRecordSchema = z.object({
   })),
   education: z.array(z.string()),
   evaluation: z.string(),
+  clientCenteredGoals: z.array(z.object({
+    goal: z.string(),
+    timeline: z.string(),
+    criteria: z.string(),
+  })).optional(),
   nextVisit: z.string().optional(),
   recommendations: z.string().optional(),
 });
@@ -188,7 +156,8 @@ const steps = [
   { id: 'odontogram', label: 'Odontogram', icon: Activity },
   { id: 'indices', label: 'Indeks Kesehatan', icon: Activity },
   { id: 'periodontal', label: 'Periodontal & Stains', icon: Activity },
-  { id: 'diagnosis', label: 'Diagnosis & Rencana', icon: ClipboardCheck },
+  { id: 'diagnosis', label: 'Diagnosis', icon: ClipboardCheck },
+  { id: 'goals', label: 'Client Centered Goals', icon: Target },
   { id: 'finish', label: 'Selesai', icon: CheckCircle2 },
 ];
 
@@ -215,24 +184,19 @@ export function MedicalRecordForm() {
       patientId: '',
       anamnesis: {
         mainComplaint: '',
-        currentIllnessHistory: '',
-        pastIllnessHistory: '',
-        allergyHistory: { food: '', drugs: '', anesthesia: '', weather: '', others: '' },
-        medicationHistory: { currentMedication: '', purpose: '', sideEffects: '', positiveEffects: '', dosageIssues: '', regularity: '' },
-        socialHistory: '',
-        dentalHistory: {
-          reasonForVisit: '',
-          whatTheyWantToKnow: '',
-          xrayLast2Years: '',
-          previousTreatmentComplications: '',
-          previousVisitOpinion: '',
-          dentalHealthGeneralHealthOpinion: '',
-          symptoms: [],
-          teethGrinding: '',
-          breathAppearanceAnxiety: '',
-          injuries: '',
-          previousTreatments: [],
-        },
+        isHealthy: true,
+        isTakingMedication: false,
+        experienced: false,
+        lastDentalVisit: '',
+        dentalVisitReason: '',
+        previousTreatmentComplications: '',
+        previousVisitOpinion: '',
+        dentalHealthGeneralHealthOpinion: '',
+        symptoms: [],
+        teethGrinding: '',
+        breathAppearanceAnxiety: '',
+        injuries: '',
+        previousTreatments: [],
         selfCareHistory: {
           toolsUsed: [],
           toothpasteType: [],
@@ -247,13 +211,24 @@ export function MedicalRecordForm() {
       },
       clinicalExam: {
         vitalSigns: { bloodPressure: '', pulse: '', respiration: '' },
-        extraOral: { face: '', neck: '', vermilionBorders: '', parotidGlands: '', lymphNodes: '', anteriorCervical: '', posteriorCervical: '', submental: '', submandibular: '', supraclavicular: '' },
-        intraOral: { labialMucosa: '', labialVestibules: '', anteriorGingivae: '', buccalVestibules: '', buccalGingivae: '', tongueDorsal: '', tongueVentral: '', tongueLateral: '', lingualTonsils: '', floorOfMouth: '', lingualGingivae: '', tonsillarPillars: '', pharyngealWall: '', softPalate: '', uvula: '', hardPalate: '', palatalGingivae: '', submandibularGlands: '' },
+        extraOral: {},
+        intraOral: {},
       },
       indices: {
         dmft: { d: 0, m: 0, f: 0, total: 0 },
         def_t: { d: 0, e: 0, f: 0, total: 0 },
         ohis: { di: 0, ci: 0, total: 0 },
+        plaqueControl: {
+          grid: {
+            '16': [false, false, false, false, false, false],
+            '11': [false, false, false, false, false, false],
+            '26': [false, false, false, false, false, false],
+            '36': [false, false, false, false, false, false],
+            '31': [false, false, false, false, false, false],
+            '46': [false, false, false, false, false, false],
+          },
+          score: 0,
+        },
         cpitn: 0,
         plaqueIndex: 0,
       },
@@ -261,9 +236,16 @@ export function MedicalRecordForm() {
       periodontalStatus: {},
       diagnosis: [{ unmetNeeds: '', cause: '', signsAndSymptoms: '' }],
       treatmentPlan: [''],
+      interventions: {
+        preventive: [],
+        educational: [],
+        therapeutic: [],
+        referral: [],
+      },
       actions: [],
       education: [],
       evaluation: '',
+      clientCenteredGoals: [{ goal: '', timeline: '', criteria: '' }],
     }
   });
 
@@ -286,6 +268,7 @@ export function MedicalRecordForm() {
   const patientId = watch('patientId');
   const watchOHIS_DI = watch('indices.ohis.di');
   const watchOHIS_CI = watch('indices.ohis.ci');
+  const watchPlaqueGrid = watch('indices.plaqueControl.grid');
 
   useEffect(() => {
     const total = parseFloat(((watchOHIS_DI || 0) + (watchOHIS_CI || 0)).toFixed(1));
@@ -293,13 +276,32 @@ export function MedicalRecordForm() {
   }, [watchOHIS_DI, watchOHIS_CI, setValue]);
 
   useEffect(() => {
+    if (!watchPlaqueGrid) return;
+    let totalSites = 0;
+    let positiveSites = 0;
+    Object.values(watchPlaqueGrid).forEach(sites => {
+      sites.forEach(site => {
+        totalSites++;
+        if (site) positiveSites++;
+      });
+    });
+    const score = totalSites > 0 ? (positiveSites / totalSites) * 100 : 0;
+    setValue('indices.plaqueControl.score', Math.round(score));
+  }, [watchPlaqueGrid, setValue]);
+
+  useEffect(() => {
     const patient = patients.find(p => p.id === patientId);
     setSelectedPatient(patient || null);
   }, [patientId, patients]);
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: diagnosisFields, append: appendDiagnosis, remove: removeDiagnosis } = useFieldArray({
     control,
     name: "diagnosis"
+  });
+
+  const { fields: goalFields, append: appendGoal, remove: removeGoal } = useFieldArray({
+    control,
+    name: "clientCenteredGoals"
   });
 
   const onSubmit = async (data: MedicalRecordFormData) => {
@@ -357,8 +359,11 @@ export function MedicalRecordForm() {
         
         ANAMNESIS:
         - Keluhan Utama: ${anamnesis.mainComplaint}
-        - Riwayat Penyakit: ${anamnesis.currentIllnessHistory}
-        - Riwayat Gigi: ${anamnesis.dentalHistory.reasonForVisit}
+        - Status Kesehatan: ${anamnesis.isHealthy ? 'Sehat' : 'Ada Masalah'}
+        - Sedang Pengobatan: ${anamnesis.isTakingMedication ? 'Ya' : 'Tidak'}
+        - Riwayat Kunjungan Gigi: ${anamnesis.lastDentalVisit} (Alasan: ${anamnesis.dentalVisitReason})
+        - Gejala: ${anamnesis.symptoms.join(', ')}
+        - Kebiasaan: ${anamnesis.selfCareHistory.habits.join(', ')}
         
         PEMERIKSAAN KLINIS:
         - Vital Signs: BP ${clinical.vitalSigns.bloodPressure}, Pulse ${clinical.vitalSigns.pulse}
@@ -452,6 +457,58 @@ export function MedicalRecordForm() {
     } catch (error) {
       console.error(error);
       toast.error('Gagal men-generate AI rencana perawatan');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const generateAIClientGoals = async () => {
+    setIsGeneratingAI(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const diagnosis = watch('diagnosis');
+      
+      const prompt = `
+        Berdasarkan diagnosis dental hygiene berikut:
+        ${JSON.stringify(diagnosis)}
+        
+        Buatkan Client-Centered Goals (Tujuan Berpusat pada Klien) yang mencakup:
+        1. Goal (Tujuan yang ingin dicapai)
+        2. Timeline (Waktu pencapaian, misal: 1 minggu, 1 bulan)
+        3. Criteria (Kriteria keberhasilan)
+        
+        Berikan output dalam format JSON array of objects:
+        [{ "goal": "...", "timeline": "...", "criteria": "..." }]
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                goal: { type: Type.STRING },
+                timeline: { type: Type.STRING },
+                criteria: { type: Type.STRING }
+              },
+              required: ["goal", "timeline", "criteria"]
+            }
+          }
+        }
+      });
+
+      const result = JSON.parse(response.text || '[]');
+      if (result.length > 0) {
+        setValue('clientCenteredGoals', result);
+        toast.success('AI berhasil men-generate Client-Centered Goals');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal men-generate AI Client-Centered Goals');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -637,40 +694,34 @@ export function MedicalRecordForm() {
               <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Anamnesis Lengkap</CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-12">
-              {/* Riwayat Medis & Alergi */}
-              <div className="space-y-8">
+              {/* Keluhan Utama */}
+              <div className="space-y-6">
                 <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em] flex items-center">
                   <span className="w-8 h-px bg-pop-blue/30 mr-3"></span>
-                  Riwayat Medis & Alergi
+                  Keluhan Utama
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <Textarea label="Keluhan Utama" {...register('anamnesis.mainComplaint')} error={errors.anamnesis?.mainComplaint?.message} />
-                  <Textarea label="Riwayat Penyakit Sekarang" {...register('anamnesis.currentIllnessHistory')} />
-                  <Textarea label="Riwayat Penyakit Dahulu (5 Tahun Terakhir)" {...register('anamnesis.pastIllnessHistory')} />
-                  <Textarea label="Riwayat Sosial" {...register('anamnesis.socialHistory')} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Input label="Alergi Makanan" {...register('anamnesis.allergyHistory.food')} />
-                  <Input label="Alergi Obat" {...register('anamnesis.allergyHistory.drugs')} />
-                  <Input label="Alergi Obat Bius" {...register('anamnesis.allergyHistory.anesthesia')} />
-                  <Input label="Alergi Cuaca" {...register('anamnesis.allergyHistory.weather')} />
-                  <Input label="Alergi Lainnya" {...register('anamnesis.allergyHistory.others')} />
-                </div>
+                <Textarea {...register('anamnesis.mainComplaint')} error={errors.anamnesis?.mainComplaint?.message} placeholder="Tuliskan keluhan utama pasien..." />
               </div>
 
-              {/* Riwayat Obat */}
+              {/* Riwayat Medis */}
               <div className="space-y-8">
                 <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em] flex items-center">
                   <span className="w-8 h-px bg-pop-blue/30 mr-3"></span>
-                  Riwayat Obat (Pharmacological History)
+                  Riwayat Medis (Medical History)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input label="Obat yang sedang dikonsumsi" {...register('anamnesis.medicationHistory.currentMedication')} />
-                  <Input label="Untuk apa?" {...register('anamnesis.medicationHistory.purpose')} />
-                  <Input label="Efek samping" {...register('anamnesis.medicationHistory.sideEffects')} />
-                  <Input label="Pengaruh positif" {...register('anamnesis.medicationHistory.positiveEffects')} />
-                  <Input label="Masalah dosis" {...register('anamnesis.medicationHistory.dosageIssues')} />
-                  <Input label="Konsumsi teratur?" {...register('anamnesis.medicationHistory.regularity')} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                    <input type="checkbox" {...register('anamnesis.isHealthy')} className="w-5 h-5 rounded border-gray-300 text-pop-blue focus:ring-pop-blue" />
+                    <label className="text-xs font-bold text-pop-text uppercase tracking-wider">Sehat?</label>
+                  </div>
+                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                    <input type="checkbox" {...register('anamnesis.isTakingMedication')} className="w-5 h-5 rounded border-gray-300 text-pop-blue focus:ring-pop-blue" />
+                    <label className="text-xs font-bold text-pop-text uppercase tracking-wider">Sedang Minum Obat?</label>
+                  </div>
+                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                    <input type="checkbox" {...register('anamnesis.experienced')} className="w-5 h-5 rounded border-gray-300 text-pop-blue focus:ring-pop-blue" />
+                    <label className="text-xs font-bold text-pop-text uppercase tracking-wider">Pernah Dirawat?</label>
+                  </div>
                 </div>
               </div>
 
@@ -680,13 +731,29 @@ export function MedicalRecordForm() {
                   <span className="w-8 h-px bg-pop-blue/30 mr-3"></span>
                   Riwayat Gigi (Dental History)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Textarea label="Alasan utama kunjungan" {...register('anamnesis.dentalHistory.reasonForVisit')} />
-                  <Textarea label="Hal yang ingin diketahui" {...register('anamnesis.dentalHistory.whatTheyWantToKnow')} />
-                  <Input label="Rontgen foto (2 tahun terakhir)" {...register('anamnesis.dentalHistory.xrayLast2Years')} />
-                  <Input label="Komplikasi perawatan sebelumnya" {...register('anamnesis.dentalHistory.previousTreatmentComplications')} />
-                  <Input label="Pendapat kunjungan sebelumnya" {...register('anamnesis.dentalHistory.previousVisitOpinion')} />
-                  <Input label="Pendapat kesehatan gigi vs umum" {...register('anamnesis.dentalHistory.dentalHealthGeneralHealthOpinion')} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <Input label="Kunjungan Terakhir" {...register('anamnesis.lastDentalVisit')} placeholder="Kapan terakhir kali ke dokter gigi?" />
+                  <Input label="Alasan Kunjungan" {...register('anamnesis.dentalVisitReason')} />
+                  <Input label="Komplikasi Perawatan Sebelumnya" {...register('anamnesis.previousTreatmentComplications')} />
+                  <Input label="Pendapat Kunjungan Sebelumnya" {...register('anamnesis.previousVisitOpinion')} />
+                  <Input label="Pendapat Kesehatan Gigi vs Umum" {...register('anamnesis.dentalHealthGeneralHealthOpinion')} />
+                  <Input label="Gejala (Symptoms)" {...register('anamnesis.symptoms')} placeholder="Pisahkan dengan koma" />
+                </div>
+              </div>
+
+              {/* Kebiasaan & Kepercayaan */}
+              <div className="space-y-8">
+                <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em] flex items-center">
+                  <span className="w-8 h-px bg-pop-blue/30 mr-3"></span>
+                  Kebiasaan & Kepercayaan
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <Input label="Teeth Grinding" {...register('anamnesis.teethGrinding')} />
+                  <Input label="Breath Appearance Anxiety" {...register('anamnesis.breathAppearanceAnxiety')} />
+                  <Input label="Injuries" {...register('anamnesis.injuries')} />
+                  <Input label="Frekuensi Sikat Gigi" {...register('anamnesis.selfCareHistory.brushingFrequency')} />
+                  <Input label="Waktu Sikat Gigi" {...register('anamnesis.selfCareHistory.brushingTime')} />
+                  <Input label="Kebiasaan Lain" {...register('anamnesis.selfCareHistory.habits')} placeholder="Pisahkan dengan koma" />
                 </div>
               </div>
             </CardContent>
@@ -719,16 +786,9 @@ export function MedicalRecordForm() {
                   Pemeriksaan Ekstra Oral
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Input label="Wajah" {...register('clinicalExam.extraOral.face')} />
-                  <Input label="Leher" {...register('clinicalExam.extraOral.neck')} />
-                  <Input label="Bibir (Vermilion Borders)" {...register('clinicalExam.extraOral.vermilionBorders')} />
-                  <Input label="Kelenjar Parotis" {...register('clinicalExam.extraOral.parotidGlands')} />
-                  <Input label="Kelenjar Limfe" {...register('clinicalExam.extraOral.lymphNodes')} />
-                  <Input label="Anterior Cervical" {...register('clinicalExam.extraOral.anteriorCervical')} />
-                  <Input label="Posterior Cervical" {...register('clinicalExam.extraOral.posteriorCervical')} />
-                  <Input label="Submental" {...register('clinicalExam.extraOral.submental')} />
-                  <Input label="Submandibular" {...register('clinicalExam.extraOral.submandibular')} />
-                  <Input label="Supraclavicular" {...register('clinicalExam.extraOral.supraclavicular')} />
+                  {['Wajah', 'Leher', 'Bibir', 'Kelenjar Parotis', 'Kelenjar Limfe', 'Anterior Cervical', 'Posterior Cervical', 'Submental', 'Submandibular', 'Supraclavicular'].map(field => (
+                    <Input key={field} label={field} {...register(`clinicalExam.extraOral.${field}`)} />
+                  ))}
                 </div>
               </div>
 
@@ -739,24 +799,9 @@ export function MedicalRecordForm() {
                   Pemeriksaan Intra Oral
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Input label="Mukosa Labial" {...register('clinicalExam.intraOral.labialMucosa')} />
-                  <Input label="Vestibulum Labial" {...register('clinicalExam.intraOral.labialVestibules')} />
-                  <Input label="Gingiva Anterior" {...register('clinicalExam.intraOral.anteriorGingivae')} />
-                  <Input label="Vestibulum Bukal" {...register('clinicalExam.intraOral.buccalVestibules')} />
-                  <Input label="Gingiva Bukal" {...register('clinicalExam.intraOral.buccalGingivae')} />
-                  <Input label="Lidah (Dorsal)" {...register('clinicalExam.intraOral.tongueDorsal')} />
-                  <Input label="Lidah (Ventral)" {...register('clinicalExam.intraOral.tongueVentral')} />
-                  <Input label="Lidah (Lateral)" {...register('clinicalExam.intraOral.tongueLateral')} />
-                  <Input label="Tonsil Lingual" {...register('clinicalExam.intraOral.lingualTonsils')} />
-                  <Input label="Dasar Mulut" {...register('clinicalExam.intraOral.floorOfMouth')} />
-                  <Input label="Gingiva Lingual" {...register('clinicalExam.intraOral.lingualGingivae')} />
-                  <Input label="Pilar Tonsil" {...register('clinicalExam.intraOral.tonsillarPillars')} />
-                  <Input label="Dinding Faring" {...register('clinicalExam.intraOral.pharyngealWall')} />
-                  <Input label="Palatum Lunak" {...register('clinicalExam.intraOral.softPalate')} />
-                  <Input label="Uvula" {...register('clinicalExam.intraOral.uvula')} />
-                  <Input label="Palatum Keras" {...register('clinicalExam.intraOral.hardPalate')} />
-                  <Input label="Gingiva Palatal" {...register('clinicalExam.intraOral.palatalGingivae')} />
-                  <Input label="Kelenjar Submandibular" {...register('clinicalExam.intraOral.submandibularGlands')} />
+                  {['Mukosa Labial', 'Vestibulum Labial', 'Gingiva Anterior', 'Vestibulum Bukal', 'Gingiva Bukal', 'Lidah', 'Dasar Mulut', 'Gingiva Lingual', 'Palatum', 'Uvula', 'Kelenjar Submandibular'].map(field => (
+                    <Input key={field} label={field} {...register(`clinicalExam.intraOral.${field}`)} />
+                  ))}
                 </div>
               </div>
             </CardContent>
@@ -833,6 +878,47 @@ export function MedicalRecordForm() {
                 </div>
               </div>
 
+              {/* Plaque Control Grid */}
+              <div className="space-y-8 pt-8 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em] flex items-center">
+                    <span className="w-8 h-px bg-pop-blue/30 mr-3"></span>
+                    Plaque Control Record (PCR)
+                  </h3>
+                  <div className="bg-pop-blue/10 px-6 py-3 rounded-2xl border-2 border-pop-blue/20">
+                    <span className="text-[10px] font-black text-pop-blue uppercase tracking-widest mr-2">Score:</span>
+                    <span className="text-xl font-black text-pop-blue">{watch('indices.plaqueControl.score')}%</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                  {Object.keys(watchPlaqueGrid || {}).map((toothNum) => (
+                    <div key={toothNum} className="p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                      <p className="text-center font-black text-pop-text text-lg mb-4">Gigi {toothNum}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[0, 1, 2, 3, 4, 5].map((siteIndex) => (
+                          <button
+                            key={siteIndex}
+                            type="button"
+                            onClick={() => {
+                              const currentGrid = { ...watchPlaqueGrid };
+                              currentGrid[toothNum][siteIndex] = !currentGrid[toothNum][siteIndex];
+                              setValue('indices.plaqueControl.grid', currentGrid);
+                            }}
+                            className={cn(
+                              "w-full aspect-square rounded-lg border-2 transition-all",
+                              watchPlaqueGrid?.[toothNum]?.[siteIndex] 
+                                ? "bg-pop-pink border-pop-pink shadow-lg shadow-pop-pink/20" 
+                                : "bg-white border-gray-200 hover:border-pop-pink/50"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input type="number" label="CPITN" {...register('indices.cpitn', { valueAsNumber: true })} />
                 <Input type="number" label="Plaque Index" {...register('indices.plaqueIndex', { valueAsNumber: true })} />
@@ -872,7 +958,7 @@ export function MedicalRecordForm() {
         {currentStep === 6 && (
           <Card className="border-2 border-gray-100 bg-pop-card shadow-xl shadow-gray-200/50 overflow-hidden rounded-3xl">
             <CardHeader className="bg-gray-50/50 border-b border-gray-100 p-8 flex flex-row items-center justify-between">
-              <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Diagnosis & Rencana Perawatan</CardTitle>
+              <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Diagnosis Dental Hygiene</CardTitle>
               <Button 
                 type="button" 
                 onClick={generateAIDiagnosis} 
@@ -886,27 +972,118 @@ export function MedicalRecordForm() {
             <CardContent className="p-8 space-y-12">
               <div className="space-y-8">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em]">Diagnosis Dental Hygiene</h3>
-                  <Button type="button" onClick={() => append({ unmetNeeds: '', cause: '', signsAndSymptoms: '' })} variant="outline" size="sm" className="rounded-xl border-pop-blue text-pop-blue">
+                  <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em]">Diagnosis (Berdasarkan 8 Kebutuhan Manusia)</h3>
+                  <Button type="button" onClick={() => appendDiagnosis({ unmetNeeds: '', cause: '', signsAndSymptoms: '' })} variant="outline" size="sm" className="rounded-xl border-pop-blue text-pop-blue">
                     <Plus className="h-4 w-4 mr-2" /> Tambah Diagnosis
                   </Button>
                 </div>
                 
                 <div className="space-y-8">
-                  {fields.map((field, index) => (
+                  {diagnosisFields.map((field, index) => (
                     <div key={field.id} className="p-8 bg-gray-50 rounded-3xl border-2 border-gray-100 relative group">
                       {index > 0 && (
-                        <Button type="button" onClick={() => remove(index)} variant="ghost" size="icon" className="absolute top-4 right-4 text-gray-300 hover:text-pop-pink">
+                        <Button type="button" onClick={() => removeDiagnosis(index)} variant="ghost" size="icon" className="absolute top-4 right-4 text-gray-300 hover:text-pop-pink">
                           <Trash2 className="h-5 w-5" />
                         </Button>
                       )}
                       <div className="grid grid-cols-1 gap-6">
-                        <Textarea label="Kebutuhan yang tidak terpenuhi" {...register(`diagnosis.${index}.unmetNeeds`)} error={errors.diagnosis?.[index]?.unmetNeeds?.message} />
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Kebutuhan yang tidak terpenuhi</label>
+                          <Select {...register(`diagnosis.${index}.unmetNeeds`)} className="py-4 bg-white border-2 border-gray-100 focus:border-pop-blue rounded-2xl font-bold text-pop-text h-14">
+                            <option value="">-- Pilih Kebutuhan --</option>
+                            <option value="Perlindungan dari resiko kesehatan">1. Perlindungan dari resiko kesehatan</option>
+                            <option value="Bebas dari ketakutan dan stress">2. Bebas dari ketakutan dan stress</option>
+                            <option value="Kesan wajah yang sehat">3. Kesan wajah yang sehat</option>
+                            <option value="Kondisi biologis dan fungsi gigi-geligi yang baik">4. Kondisi biologis dan fungsi gigi-geligi yang baik</option>
+                            <option value="Keutuhan kulit dan membran mukosa pada kepala dan leher">5. Keutuhan kulit dan membran mukosa pada kepala dan leher</option>
+                            <option value="Terbebas dari nyeri pada kepala dan leher">6. Terbebas dari nyeri pada kepala dan leher</option>
+                            <option value="Konseptualisasi dan pemecahan masalah">7. Konseptualisasi dan pemecahan masalah</option>
+                            <option value="Tanggung jawab untuk kesehatan mulut">8. Tanggung jawab untuk kesehatan mulut</option>
+                          </Select>
+                        </div>
                         <Textarea label="Penyebab (Etiologi)" {...register(`diagnosis.${index}.cause`)} error={errors.diagnosis?.[index]?.cause?.message} />
                         <Textarea label="Tanda-tanda dan Gejala" {...register(`diagnosis.${index}.signsAndSymptoms`)} error={errors.diagnosis?.[index]?.signsAndSymptoms?.message} />
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {currentStep === 7 && (
+          <Card className="border-2 border-gray-100 bg-pop-card shadow-xl shadow-gray-200/50 overflow-hidden rounded-3xl">
+            <CardHeader className="bg-gray-50/50 border-b border-gray-100 p-8 flex flex-row items-center justify-between">
+              <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Client-Centered Goals</CardTitle>
+              <Button 
+                type="button" 
+                onClick={generateAIClientGoals} 
+                disabled={isGeneratingAI}
+                className="bg-gradient-to-r from-pop-blue to-pop-purple text-white rounded-2xl px-6 py-4 font-black uppercase tracking-widest text-[10px] flex items-center space-x-2 shadow-lg shadow-pop-blue/20"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>{isGeneratingAI ? 'Menganalisis...' : 'AI Generate Goals'}</span>
+              </Button>
+            </CardHeader>
+            <CardContent className="p-8 space-y-12">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em]">Tujuan Berpusat pada Klien</h3>
+                  <Button type="button" onClick={() => appendGoal({ goal: '', timeline: '', criteria: '' })} variant="outline" size="sm" className="rounded-xl border-pop-blue text-pop-blue">
+                    <Plus className="h-4 w-4 mr-2" /> Tambah Goal
+                  </Button>
+                </div>
+                
+                <div className="space-y-8">
+                  {goalFields.map((field, index) => (
+                    <div key={field.id} className="p-8 bg-gray-50 rounded-3xl border-2 border-gray-100 relative group">
+                      {index > 0 && (
+                        <Button type="button" onClick={() => removeGoal(index)} variant="ghost" size="icon" className="absolute top-4 right-4 text-gray-300 hover:text-pop-pink">
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                      )}
+                      <div className="grid grid-cols-1 gap-6">
+                        <Textarea label="Goal (Tujuan)" {...register(`clientCenteredGoals.${index}.goal`)} />
+                        <Input label="Timeline (Waktu)" {...register(`clientCenteredGoals.${index}.timeline`)} />
+                        <Textarea label="Criteria (Kriteria Keberhasilan)" {...register(`clientCenteredGoals.${index}.criteria`)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <h3 className="text-xs font-black text-pop-blue uppercase tracking-[0.2em]">Intervensi Dental Hygiene</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-pop-blue uppercase tracking-widest flex items-center">
+                      <span className="w-4 h-px bg-pop-blue/30 mr-2"></span>
+                      Preventive
+                    </h4>
+                    <Textarea placeholder="Contoh: Scaling, Polishing, Topical Fluoride..." {...register('interventions.preventive.0')} />
+                  </div>
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-pop-blue uppercase tracking-widest flex items-center">
+                      <span className="w-4 h-px bg-pop-blue/30 mr-2"></span>
+                      Educational
+                    </h4>
+                    <Textarea placeholder="Contoh: Instruksi menyikat gigi, Edukasi diet..." {...register('interventions.educational.0')} />
+                  </div>
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-pop-blue uppercase tracking-widest flex items-center">
+                      <span className="w-4 h-px bg-pop-blue/30 mr-2"></span>
+                      Therapeutic
+                    </h4>
+                    <Textarea placeholder="Contoh: Perawatan periodontal, Desensitisasi..." {...register('interventions.therapeutic.0')} />
+                  </div>
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-pop-blue uppercase tracking-widest flex items-center">
+                      <span className="w-4 h-px bg-pop-blue/30 mr-2"></span>
+                      Referral
+                    </h4>
+                    <Textarea placeholder="Contoh: Rujuk ke Dokter Gigi Spesialis..." {...register('interventions.referral.0')} />
+                  </div>
                 </div>
               </div>
 
@@ -924,7 +1101,7 @@ export function MedicalRecordForm() {
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 gap-6">
-                  <Textarea label="Rencana Perawatan (Client-Centered Goals)" {...register('treatmentPlan.0')} placeholder="Masukkan rencana perawatan utama..." />
+                  <Textarea label="Rencana Perawatan" {...register('treatmentPlan.0')} placeholder="Masukkan rencana perawatan utama..." />
                   
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -976,7 +1153,7 @@ export function MedicalRecordForm() {
           </Card>
         )}
 
-        {currentStep === 7 && (
+        {currentStep === 8 && (
           <Card className="border-2 border-gray-100 bg-white shadow-2xl shadow-gray-200/50 overflow-hidden rounded-[3rem] text-center py-20">
             <CardContent className="space-y-10">
               <div className="flex justify-center">

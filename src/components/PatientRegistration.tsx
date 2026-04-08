@@ -48,6 +48,27 @@ export function PatientRegistration({ userProfile }: PatientRegistrationProps) {
     occupation: '',
     education: '',
     maritalStatus: 'Belum Kawin',
+    religion: '',
+    placeOfBirth: '',
+    nationality: 'Indonesia',
+    bloodType: '',
+    dependents: {
+      children: 0,
+      others: 0
+    },
+    weight: 0,
+    height: 0,
+    dentistInfo: {
+      name: '',
+      phone: '',
+      address: ''
+    },
+    doctorInfo: {
+      name: '',
+      phone: '',
+      address: ''
+    },
+    referralSource: '',
     incomeRange: '',
     hobbies: ''
   });
@@ -387,29 +408,130 @@ export function PatientRegistration({ userProfile }: PatientRegistrationProps) {
                       </Select>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Range Pendapatan</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Agama</label>
+                      <Input 
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.religion}
+                        onChange={(e) => setNewPatient({...newPatient, religion: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Tempat Lahir</label>
+                      <Input 
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.placeOfBirth}
+                        onChange={(e) => setNewPatient({...newPatient, placeOfBirth: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Bangsa</label>
+                      <Input 
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.nationality}
+                        onChange={(e) => setNewPatient({...newPatient, nationality: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Gol. Darah</label>
                       <Select 
                         className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
-                        value={newPatient.incomeRange}
-                        onChange={(e) => setNewPatient({...newPatient, incomeRange: e.target.value})}
+                        value={newPatient.bloodType}
+                        onChange={(e) => setNewPatient({...newPatient, bloodType: e.target.value})}
                       >
-                        <option value="">Pilih Range Pendapatan</option>
-                        <option value="< 1 Juta">{"< 1 Juta"}</option>
-                        <option value="1 - 3 Juta">1 - 3 Juta</option>
-                        <option value="3 - 5 Juta">3 - 5 Juta</option>
-                        <option value="5 - 10 Juta">5 - 10 Juta</option>
-                        <option value="> 10 Juta">{"> 10 Juta"}</option>
+                        <option value="">Pilih Gol. Darah</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="AB">AB</option>
+                        <option value="O">O</option>
                       </Select>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Hobi / Aktivitas Rekreasi</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Tanggungan (Anak)</label>
                       <Input 
+                        type="number"
                         className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
-                        placeholder="Contoh: Berenang, Membaca"
-                        value={newPatient.hobbies}
-                        onChange={(e) => setNewPatient({...newPatient, hobbies: e.target.value})}
+                        value={newPatient.dependents.children}
+                        onChange={(e) => setNewPatient({...newPatient, dependents: {...newPatient.dependents, children: parseInt(e.target.value) || 0}})}
                       />
                     </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Tanggungan (Orang Lain)</label>
+                      <Input 
+                        type="number"
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.dependents.others}
+                        onChange={(e) => setNewPatient({...newPatient, dependents: {...newPatient.dependents, others: parseInt(e.target.value) || 0}})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Berat Badan (Kg)</label>
+                      <Input 
+                        type="number"
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.weight}
+                        onChange={(e) => setNewPatient({...newPatient, weight: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Tinggi Badan (cm)</label>
+                      <Input 
+                        type="number"
+                        className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                        value={newPatient.height}
+                        onChange={(e) => setNewPatient({...newPatient, height: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-100">
+                    <div className="space-y-6">
+                      <h4 className="text-xs font-black text-pop-blue uppercase tracking-widest italic">Informasi Dokter Gigi</h4>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Nama Drg.</label>
+                        <Input 
+                          className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                          value={newPatient.dentistInfo.name}
+                          onChange={(e) => setNewPatient({...newPatient, dentistInfo: {...newPatient.dentistInfo, name: e.target.value}})}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">No. Tlp Drg.</label>
+                        <Input 
+                          className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                          value={newPatient.dentistInfo.phone}
+                          onChange={(e) => setNewPatient({...newPatient, dentistInfo: {...newPatient.dentistInfo, phone: e.target.value}})}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <h4 className="text-xs font-black text-pop-blue uppercase tracking-widest italic">Informasi Dokter Umum</h4>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Nama Dokter</label>
+                        <Input 
+                          className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                          value={newPatient.doctorInfo.name}
+                          onChange={(e) => setNewPatient({...newPatient, doctorInfo: {...newPatient.doctorInfo, name: e.target.value}})}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">No. Tlp Dokter</label>
+                        <Input 
+                          className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                          value={newPatient.doctorInfo.phone}
+                          onChange={(e) => setNewPatient({...newPatient, doctorInfo: {...newPatient.doctorInfo, phone: e.target.value}})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Sumber Rujukan</label>
+                    <Input 
+                      className="py-8 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-pop-text"
+                      placeholder="Contoh: Teman, Internet, Puskesmas"
+                      value={newPatient.referralSource}
+                      onChange={(e) => setNewPatient({...newPatient, referralSource: e.target.value})}
+                    />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Alamat Lengkap</label>

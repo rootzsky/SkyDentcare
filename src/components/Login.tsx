@@ -34,6 +34,7 @@ const ROLES = [
   { value: 'dentist', label: 'Dokter Gigi' },
   { value: 'dental_therapist', label: 'Terapis Gigi' },
   { value: 'admin_staff', label: 'Staf Administrasi' },
+  { value: 'supervisor', label: 'Dosen Pembimbing' },
 ];
 
 export function Login({ onLogin }: LoginProps) {
@@ -107,6 +108,13 @@ export function Login({ onLogin }: LoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCaptcha()) return;
+
+    if (isRegistering && password.length < 6) {
+      toast.error('Kata sandi minimal 6 karakter.');
+      setIsLoading(true); // Just to trigger the loading state briefly for feedback
+      setTimeout(() => setIsLoading(false), 500);
+      return;
+    }
     
     setIsLoading(true);
     try {
@@ -121,11 +129,15 @@ export function Login({ onLogin }: LoginProps) {
 
         // Create Firestore Profile immediately to ensure role is saved
         const userDocRef = doc(db, 'users', user.uid);
+        
+        // Special handling for supervisor account requested by user
+        const finalRole = email.toLowerCase() === 'dospem@gmail.com' ? 'supervisor' : role;
+        
         const profileData = {
           uid: user.uid,
           email: user.email || '',
           displayName: displayName || user.displayName || 'User',
-          role: role,
+          role: finalRole,
           createdAt: Timestamp.now(),
         };
 
@@ -155,6 +167,14 @@ export function Login({ onLogin }: LoginProps) {
         toast.error('Email atau kata sandi salah.');
       } else if (error.code === 'auth/weak-password') {
         toast.error('Kata sandi terlalu lemah (minimal 6 karakter).');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        toast.error(
+          <div className="space-y-2">
+            <p className="font-bold">Metode Login Belum Aktif!</p>
+            <p className="text-[10px]">Silakan aktifkan "Email/Password" di Firebase Console (Authentication &gt; Sign-in method).</p>
+          </div>,
+          { duration: 10000 }
+        );
       } else {
         toast.error(isRegistering ? 'Gagal mendaftar.' : 'Gagal masuk.');
       }
