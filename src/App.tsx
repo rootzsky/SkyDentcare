@@ -58,11 +58,20 @@ export default function App() {
               await setDoc(userDocRef, defaultProfile);
               setUserProfile(defaultProfile);
             } catch (saveError) {
-              handleFirestoreError(saveError, OperationType.WRITE, `users/${currentUser.uid}`);
+              console.warn('Could not save new user profile:', saveError);
+              setUserProfile(defaultProfile);
             }
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          console.warn('Could not fetch user profile from Firestore:', error);
+          const fallbackProfile: UserProfile = {
+            uid: currentUser.uid,
+            email: currentUser.email || '',
+            displayName: currentUser.displayName || 'User',
+            role: currentUser.email === 'rudisetiawan935@gmail.com' ? 'admin' : 'patient',
+            createdAt: Timestamp.now(),
+          };
+          setUserProfile(fallbackProfile);
         }
       } else {
         setUser(currentUser);

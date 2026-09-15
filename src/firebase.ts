@@ -99,24 +99,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Connection test
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Firestore connection successful.");
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('the client is offline') || error.message.includes('unavailable')) {
-        console.error("Firestore connection failed: The backend is unreachable. This may be due to incorrect configuration or the database still being provisioned. Error:", error.message);
-      } else {
-        // Other errors (like permission denied) are expected if the 'test/connection' doc doesn't exist or rules are strict
-        console.log("Firestore connection test completed (expected behavior for non-existent test doc).");
-      }
-    }
-  }
-}
-testConnection();
-
 export { 
   collection, 
   doc, 

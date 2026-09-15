@@ -7,14 +7,23 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/src/lib/utils';
 import { TOOTH_NUMBERS, TOOTH_STATUS_COLORS, TOOTH_STATUS_LABELS } from '@/src/constants';
 import { ToothStatus } from '@/src/types';
+import { OdontogramSpeechInput } from './OdontogramSpeechInput';
 
 interface OdontogramProps {
   data: Record<string, ToothStatus>;
   onChange?: (toothNumber: string, status: ToothStatus) => void;
+  onBatchChange?: (updates: Record<string, ToothStatus>) => void;
   readOnly?: boolean;
+  showSpeechInput?: boolean;
 }
 
-export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps) {
+export function Odontogram({ 
+  data, 
+  onChange, 
+  onBatchChange,
+  readOnly = false,
+  showSpeechInput = true,
+}: OdontogramProps) {
   const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
   const odontogramRef = useRef<HTMLDivElement>(null);
 
@@ -115,14 +124,25 @@ export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps
   );
 
   return (
-    <div 
-      ref={odontogramRef}
-      className={cn(
-        "space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative transition-all duration-300",
-        selectedTooth && "pb-64"
+    <div className="space-y-6">
+      {/* Speech to Text Input Section */}
+      {showSpeechInput && !readOnly && onChange && (
+        <OdontogramSpeechInput
+          onToothChange={onChange}
+          onBatchToothChange={onBatchChange}
+          currentOdontogramData={data}
+          readOnly={readOnly}
+        />
       )}
-    >
-      <div className="flex flex-col items-center space-y-12 min-w-[800px]">
+
+      <div 
+        ref={odontogramRef}
+        className={cn(
+          "space-y-8 p-8 bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-gray-200/50 overflow-x-auto relative transition-all duration-300",
+          selectedTooth && "pb-64"
+        )}
+      >
+        <div className="flex flex-col items-center space-y-12 min-w-[800px]">
         {/* Upper Permanent Teeth */}
         <div className="flex space-x-8">
           {renderToothRow(TOOTH_NUMBERS.UPPER_RIGHT, 'Kanan Atas (T)')}
@@ -187,10 +207,11 @@ export function Odontogram({ data, onChange, readOnly = false }: OdontogramProps
       {!readOnly && (
         <div className="mt-4 text-center">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
-            Klik pada gigi untuk mengubah status
+            Klik pada gigi untuk mengubah status atau gunakan Dikte Suara di atas
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

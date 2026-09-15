@@ -306,6 +306,11 @@ export function MedicalRecordForm() {
 
   const onSubmit = async (data: MedicalRecordFormData) => {
     try {
+      if (!auth.currentUser) {
+        toast.error('Silakan login terlebih dahulu untuk menyimpan rekam medis');
+        return;
+      }
+
       // Ensure totals are calculated before saving
       data.indices.ohis.total = parseFloat(((data.indices.ohis.di || 0) + (data.indices.ohis.ci || 0)).toFixed(1));
       data.indices.dmft.total = (data.indices.dmft.d || 0) + (data.indices.dmft.m || 0) + (data.indices.dmft.f || 0);
@@ -314,12 +319,30 @@ export function MedicalRecordForm() {
       // Use getSignaturePad().toDataURL() to avoid the trim-canvas error
       const signature = sigCanvas.current?.isEmpty() ? null : sigCanvas.current?.toDataURL('image/png');
       
+      const formattedAnamnesis = { ...data.anamnesis };
+      if (typeof formattedAnamnesis.symptoms === 'string') {
+        formattedAnamnesis.symptoms = (formattedAnamnesis.symptoms as string)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      }
+      if (typeof formattedAnamnesis.selfCareHistory?.habits === 'string') {
+        formattedAnamnesis.selfCareHistory = {
+          ...formattedAnamnesis.selfCareHistory,
+          habits: (formattedAnamnesis.selfCareHistory.habits as any)
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean),
+        };
+      }
+
       const recordData = {
         ...data,
+        anamnesis: formattedAnamnesis,
         odontogram: odontogramData,
         signature,
         date: new Date().toISOString(),
-        createdBy: auth.currentUser?.uid || 'unknown',
+        createdBy: auth.currentUser.uid,
         createdAt: Timestamp.now(),
       };
 
@@ -349,25 +372,37 @@ export function MedicalRecordForm() {
   const generateAIDiagnosis = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        toast.error('API Key Gemini belum tersedia');
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const anamnesis = watch('anamnesis');
       const clinical = watch('clinicalExam');
       const odontogram = odontogramData;
+
+      const symptomsStr = Array.isArray(anamnesis?.symptoms)
+        ? anamnesis.symptoms.join(', ')
+        : String(anamnesis?.symptoms || '-');
+      const habitsStr = Array.isArray(anamnesis?.selfCareHistory?.habits)
+        ? anamnesis.selfCareHistory.habits.join(', ')
+        : String(anamnesis?.selfCareHistory?.habits || '-');
 
       const prompt = `
         Sebagai pakar Dental Hygiene, buatkan analisis diagnosis berdasarkan data berikut:
         
         ANAMNESIS:
-        - Keluhan Utama: ${anamnesis.mainComplaint}
-        - Status Kesehatan: ${anamnesis.isHealthy ? 'Sehat' : 'Ada Masalah'}
-        - Sedang Pengobatan: ${anamnesis.isTakingMedication ? 'Ya' : 'Tidak'}
-        - Riwayat Kunjungan Gigi: ${anamnesis.lastDentalVisit} (Alasan: ${anamnesis.dentalVisitReason})
-        - Gejala: ${anamnesis.symptoms.join(', ')}
-        - Kebiasaan: ${anamnesis.selfCareHistory.habits.join(', ')}
+        - Keluhan Utama: ${anamnesis?.mainComplaint || '-'}
+        - Status Kesehatan: ${anamnesis?.isHealthy ? 'Sehat' : 'Ada Masalah'}
+        - Sedang Pengobatan: ${anamnesis?.isTakingMedication ? 'Ya' : 'Tidak'}
+        - Riwayat Kunjungan Gigi: ${anamnesis?.lastDentalVisit || '-'} (Alasan: ${anamnesis?.dentalVisitReason || '-'})
+        - Gejala: ${symptomsStr}
+        - Kebiasaan: ${habitsStr}
         
         PEMERIKSAAN KLINIS:
-        - Vital Signs: BP ${clinical.vitalSigns.bloodPressure}, Pulse ${clinical.vitalSigns.pulse}
-        - Intra Oral: ${JSON.stringify(clinical.intraOral)}
+        - Vital Signs: BP ${clinical?.vitalSigns?.bloodPressure || '-'}, Pulse ${clinical?.vitalSigns?.pulse || '-'}
+        - Intra Oral: ${JSON.stringify(clinical?.intraOral || {})}
         
         ODONTOGRAM:
         ${JSON.stringify(odontogram)}
@@ -387,7 +422,7 @@ export function MedicalRecordForm() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -438,7 +473,7 @@ export function MedicalRecordForm() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -465,7 +500,12 @@ export function MedicalRecordForm() {
   const generateAIClientGoals = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        toast.error('API Key Gemini belum tersedia');
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const diagnosis = watch('diagnosis');
       
       const prompt = `
@@ -482,7 +522,7 @@ export function MedicalRecordForm() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -517,7 +557,12 @@ export function MedicalRecordForm() {
   const generateAIEvaluation = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        toast.error('API Key Gemini belum tersedia');
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const diagnosis = watch('diagnosis');
       const treatmentPlan = watch('treatmentPlan');
       
@@ -533,7 +578,7 @@ export function MedicalRecordForm() {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
       });
 
@@ -550,7 +595,11 @@ export function MedicalRecordForm() {
   };
 
   const handleToothChange = (toothNumber: string, status: ToothStatus) => {
-    const newData = { ...odontogramData, [toothNumber]: status };
+    handleBatchToothChange({ [toothNumber]: status });
+  };
+
+  const handleBatchToothChange = (updates: Record<string, ToothStatus>) => {
+    const newData = { ...odontogramData, ...updates };
     setOdontogramData(newData);
     
     // Auto-calculate DMF-T (Permanent) and def-t (Deciduous)
@@ -811,11 +860,22 @@ export function MedicalRecordForm() {
         {currentStep === 3 && (
           <Card className="border-2 border-gray-100 bg-pop-card shadow-xl shadow-gray-200/50 overflow-hidden rounded-3xl">
             <CardHeader className="bg-gray-50/50 border-b border-gray-100 p-8">
-              <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Odontogram Interaktif</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-xl font-black text-pop-text uppercase tracking-wider">Odontogram Interaktif</CardTitle>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                    Klik gigi atau gunakan fitur Dikte Suara (Speech to Text) untuk pengisian otomatis tanpa sentuhan tangan.
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-8">
               <div className="bg-gray-50/50 rounded-3xl p-8 border-2 border-gray-100">
-                <Odontogram data={odontogramData} onChange={handleToothChange} />
+                <Odontogram 
+                  data={odontogramData} 
+                  onChange={handleToothChange} 
+                  onBatchChange={handleBatchToothChange}
+                />
               </div>
             </CardContent>
           </Card>
