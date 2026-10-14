@@ -5,7 +5,7 @@
 
 import { Timestamp } from 'firebase/firestore';
 
-export type UserRole = 'admin' | 'dentist' | 'dental_therapist' | 'admin_staff' | 'patient' | 'supervisor';
+export type UserRole = 'admin' | 'dentist' | 'dental_therapist' | 'admin_staff' | 'patient' | 'supervisor' | 'super_admin';
 
 export interface UserProfile {
   uid: string;
@@ -291,4 +291,61 @@ export interface InformedConsent {
   doctorSignature: string; // Base64 image
   notes?: string;
   createdAt: Timestamp | string;
+}
+
+export type ApiKeyRole = 'super_admin' | 'admin';
+
+export type ApiKeyScope = 
+  | 'all'
+  | 'patients:read'
+  | 'patients:write'
+  | 'records:read'
+  | 'records:write'
+  | 'odontogram:read'
+  | 'odontogram:write'
+  | 'billing:read'
+  | 'billing:write'
+  | 'analytics:read'
+  | 'satusehat:fhir'
+  | 'system:admin';
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string; // e.g. "dc_live_3f9a..."
+  maskedKey: string;
+  fullKey?: string; // only populated momentarily upon creation
+  role: ApiKeyRole;
+  scopes: ApiKeyScope[];
+  rateLimit: number; // requests per minute
+  expiresAt: string; // ISO date string or 'never'
+  status: 'active' | 'revoked';
+  createdBy: string;
+  creatorEmail: string;
+  createdAt: Timestamp | string;
+  lastUsedAt?: Timestamp | string;
+}
+
+export interface FollowUpProgram {
+  id: string;
+  code: string;
+  title: string;
+  category: 'preventif_pediatrik' | 'periodontal' | 'konservasi' | 'bedah_mulut' | 'prostodonti_geriatri';
+  priority: 'Tinggi' | 'Sedang' | 'Rutin';
+  targetPopulation: string;
+  empiricalEvidence: {
+    affectedCount: number;
+    percentage: number;
+    metricLabel: string;
+    metricValue: string;
+    clinicalFinding: string;
+  };
+  clinicalInterventions: string[];
+  kpiTargets: {
+    indicator: string;
+    targetValue: string;
+    timeline: string;
+  }[];
+  budgetEstimatePerPatient: number;
+  status: 'direncanakan' | 'berjalan' | 'evaluasi';
 }

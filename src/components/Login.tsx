@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Stethoscope, ShieldCheck, Lock, Mail, UserPlus, LogIn, User as UserIcon, Briefcase } from 'lucide-react';
+import { Stethoscope, ShieldCheck, Shield, Lock, Mail, UserPlus, LogIn, User as UserIcon, Briefcase } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
@@ -16,6 +16,7 @@ import {
   signInWithEmailAndPassword, 
   updateProfile, 
   sendEmailVerification,
+  sendPasswordResetEmail,
   db,
   doc,
   setDoc,
@@ -65,6 +66,16 @@ export function Login({ onLogin }: LoginProps) {
       return false;
     }
     return true;
+  };
+
+  const handleForgotPassword = async () => {
+    const targetEmail = email.trim() || 'rudisetiawan935@gmail.com';
+    try {
+      await sendPasswordResetEmail(auth, targetEmail);
+      toast.success(`Tautan reset/atur kata sandi telah dikirim ke ${targetEmail}. Silakan periksa inbox/spam email Anda.`);
+    } catch (err: any) {
+      toast.error('Gagal mengirim tautan reset kata sandi: ' + (err.message || err.code));
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -118,25 +129,28 @@ export function Login({ onLogin }: LoginProps) {
     
     setIsLoading(true);
     try {
+      const trimmedEmail = email.trim();
+      const isSuperAdmin = trimmedEmail.toLowerCase() === 'rudisetiawan935@gmail.com';
+      const isSupervisor = trimmedEmail.toLowerCase() === 'dospem@gmail.com';
+
       if (isRegistering) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
         const user = userCredential.user;
 
+        const finalRole = isSuperAdmin ? 'admin' : (isSupervisor ? 'supervisor' : role);
+        const finalDisplayName = displayName || (isSuperAdmin ? 'Rudi Setiawan (Super Admin)' : (user.displayName || 'User'));
+
         // Update Auth Profile
-        if (displayName) {
-          await updateProfile(user, { displayName });
+        if (displayName || isSuperAdmin) {
+          await updateProfile(user, { displayName: finalDisplayName });
         }
 
         // Create Firestore Profile immediately to ensure role is saved
         const userDocRef = doc(db, 'users', user.uid);
-        
-        // Special handling for supervisor account requested by user
-        const finalRole = email.toLowerCase() === 'dospem@gmail.com' ? 'supervisor' : role;
-        
         const profileData = {
           uid: user.uid,
-          email: user.email || '',
-          displayName: displayName || user.displayName || 'User',
+          email: user.email || trimmedEmail,
+          displayName: finalDisplayName,
           role: finalRole,
           createdAt: Timestamp.now(),
         };
@@ -153,16 +167,30 @@ export function Login({ onLogin }: LoginProps) {
           toast.success('Pendaftaran berhasil! Email verifikasi telah dikirim.');
         } catch (emailError) {
           console.error('Email verification error:', emailError);
-          toast.success('Pendaftaran berhasil! (Gagal mengirim email verifikasi)');
+          toast.success('Pendaftaran berhasil!');
         }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast.success('Berhasil masuk.');
+        try {
+          await signInWithEmailAndPassword(auth, trimmedEmail, password);
+          toast.success('Berhasil masuk.');
+        } catch (authErr: any) {
+          if (isSuperAdmin && (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password')) {
+            toast.error(
+              <div className="space-y-2 text-left">
+                <p className="font-bold text-sm text-pop-pink">Akun Super Admin Terdeteksi</p>
+                <p className="text-xs text-gray-700">Akun Google <b>rudisetiawan935@gmail.com</b> dapat langsung masuk dengan menekan tombol <b>Google Login</b> di bawah, atau klik <b>Lupa kata sandi?</b> untuk menyetel kata sandi rudi92.</p>
+              </div>,
+              { duration: 9000 }
+            );
+            return;
+          }
+          throw authErr;
+        }
       }
     } catch (error: any) {
       console.error('Auth error:', error);
       if (error.code === 'auth/email-already-in-use') {
-        toast.error('Email sudah terdaftar.');
+        toast.error('Email sudah terdaftar. Silakan langsung masuk atau klik tombol Google Login.');
       } else if (error.code === 'auth/invalid-credential') {
         toast.error('Email atau kata sandi salah.');
       } else if (error.code === 'auth/weak-password') {
@@ -213,6 +241,29 @@ export function Login({ onLogin }: LoginProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-10 pt-6">
+            {!isRegistering && (
+              <div className="mb-6 p-4 rounded-2xl bg-pop-pink/10 border-2 border-pop-pink/30 flex items-center justify-between gap-3 text-left">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-4 h-4 text-pop-pink shrink-0" />
+                    <span className="text-[11px] font-black text-pop-pink uppercase tracking-wider">Super Admin</span>
+                  </div>
+                  <p className="text-xs font-bold text-pop-text truncate mt-0.5">rudisetiawan935@gmail.com</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('rudisetiawan935@gmail.com');
+                    setPassword('rudi92');
+                    toast.info('Kredensial Super Admin berhasil diisikan.');
+                  }}
+                  className="px-3 py-1.5 bg-pop-pink hover:bg-pop-purple text-white text-[11px] font-black rounded-xl uppercase tracking-wider transition-colors shrink-0 shadow-sm"
+                >
+                  Isi Form
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 {isRegistering && (
@@ -291,7 +342,13 @@ export function Login({ onLogin }: LoginProps) {
                     </div>
                     <span className="text-sm text-gray-500 group-hover:text-pop-text transition-colors">Ingat saya</span>
                   </label>
-                  <a href="#" className="text-sm font-bold text-pop-blue hover:text-pop-pink transition-colors uppercase tracking-tighter">Lupa kata sandi?</a>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-sm font-bold text-pop-blue hover:text-pop-pink transition-colors uppercase tracking-tighter"
+                  >
+                    Lupa kata sandi?
+                  </button>
                 </div>
               )}
 

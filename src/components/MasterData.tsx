@@ -297,8 +297,14 @@ export function MasterData() {
                             </div>
                           </td>
                           <td className="px-10 py-8">
-                            <Badge variant="outline" className="bg-pop-blue/5 text-pop-blue border-pop-blue/10 rounded-full px-5 py-2 font-black text-[10px] uppercase tracking-widest">
-                              {ROLES[user.role as keyof typeof ROLES] || user.role.replace('_', ' ')}
+                            <Badge variant="outline" className={`rounded-full px-5 py-2 font-black text-[10px] uppercase tracking-widest ${
+                              user.email?.toLowerCase() === 'rudisetiawan935@gmail.com' || user.role === 'super_admin'
+                                ? 'bg-pop-pink/10 text-pop-pink border-pop-pink/30'
+                                : user.role === 'admin'
+                                ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                : 'bg-pop-blue/5 text-pop-blue border-pop-blue/10'
+                            }`}>
+                              {user.email?.toLowerCase() === 'rudisetiawan935@gmail.com' ? 'Super Admin' : (ROLES[user.role as keyof typeof ROLES] || user.role.replace('_', ' '))}
                             </Badge>
                           </td>
                           <td className="px-10 py-8">

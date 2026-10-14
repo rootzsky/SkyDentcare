@@ -27,7 +27,7 @@ import { Button } from './ui/Button';
 
 interface LayoutProps {
   children: ReactNode;
-  userProfile: { displayName: string; role: string } | null;
+  userProfile: { displayName: string; role: string; email?: string } | null;
   onLogout: () => void;
 }
 
@@ -35,23 +35,25 @@ export function Layout({ children, userProfile, onLogout }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const userRole = userProfile?.role || 'guest';
 
+  const isSuperAdmin = userRole === 'super_admin' || userRole === 'admin' || userProfile?.email?.toLowerCase() === 'rudisetiawan935@gmail.com';
+
   const menuItems = [
-    {icon: LayoutDashboard, label: 'Dashboard', href: '#dashboard', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
-    {icon: Users, label: 'Data Pasien', href: '#patients', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
-    {icon: ClipboardList, label: 'Rekam Medis', href: '#medical-records', roles: ['admin', 'dentist', 'dental_therapist', 'supervisor'] },
-    {icon: Calendar, label: 'Jadwal', href: '#appointments', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
-    {icon: FileText, label: 'Informed Consent', href: '#informed-consent', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
-    {icon: Video, label: 'Edukasi Gigi', href: '#education', roles: ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
-    {icon: Receipt, label: 'Billing', href: '#billing', roles: ['admin', 'admin_staff', 'supervisor'] },
-    {icon: BookOpen, label: 'Pedoman Diagnosa', href: '#diagnosis-guidelines', roles: ['admin', 'dentist', 'dental_therapist', 'supervisor'] },
-    {icon: BarChart3, label: 'Laporan', href: '#reports', roles: ['admin', 'dentist', 'supervisor'] },
-    {icon: Database, label: 'Data Master', href: '#master-data', roles: ['admin', 'supervisor'] },
-    {icon: ShieldCheck, label: 'Keamanan', href: '#security', roles: ['admin', 'supervisor'] },
-    {icon: Settings, label: 'Pengaturan', href: '#settings', roles: ['admin', 'supervisor'] },
+    {icon: LayoutDashboard, label: 'Dashboard', href: '#dashboard', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
+    {icon: Users, label: 'Data Pasien', href: '#patients', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: ClipboardList, label: 'Rekam Medis', href: '#medical-records', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'supervisor'] },
+    {icon: Calendar, label: 'Jadwal', href: '#appointments', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: FileText, label: 'Informed Consent', href: '#informed-consent', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'admin_staff', 'supervisor'] },
+    {icon: Video, label: 'Edukasi Gigi', href: '#education', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] },
+    {icon: Receipt, label: 'Billing', href: '#billing', roles: ['admin', 'super_admin', 'admin_staff', 'supervisor'] },
+    {icon: BookOpen, label: 'Pedoman Diagnosa', href: '#diagnosis-guidelines', roles: ['admin', 'super_admin', 'dentist', 'dental_therapist', 'supervisor'] },
+    {icon: BarChart3, label: 'Laporan', href: '#reports', roles: ['admin', 'super_admin', 'dentist', 'supervisor'] },
+    {icon: Database, label: 'Data Master', href: '#master-data', roles: ['admin', 'super_admin', 'supervisor'] },
+    {icon: ShieldCheck, label: 'Keamanan', href: '#security', roles: ['admin', 'super_admin', 'supervisor'] },
+    {icon: Settings, label: 'Pengaturan', href: '#settings', roles: ['admin', 'super_admin', 'supervisor'] },
     { icon: ClipboardList, label: 'Pendaftaran', href: '#registration', roles: ['patient'] },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
+  const filteredMenuItems = menuItems.filter(item => isSuperAdmin || item.roles.includes(userRole));
   const currentHash = window.location.hash || '#dashboard';
 
   return (
@@ -182,7 +184,7 @@ export function Layout({ children, userProfile, onLogout }: LayoutProps) {
             <div className="text-right hidden sm:block">
               <p className="text-sm font-black text-pop-text leading-tight italic uppercase tracking-tighter">{userProfile?.displayName || 'User Name'}</p>
               <p className="text-[10px] font-black text-pop-pink uppercase tracking-[0.3em] mt-1">
-                {userRole.replace('_', ' ')}
+                {userProfile?.email?.toLowerCase() === 'rudisetiawan935@gmail.com' || userRole === 'super_admin' ? 'SUPER ADMIN' : userRole.replace('_', ' ')}
               </p>
             </div>
             <div className="h-14 w-14 rounded-2xl bg-pop-bg flex items-center justify-center text-pop-blue font-black text-xl border-2 border-pop-blue pop-shadow-blue ring-4 ring-pop-blue/5">

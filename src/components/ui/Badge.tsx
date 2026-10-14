@@ -7,7 +7,7 @@ import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/src/lib/utils';
 
 interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'warning';
+  variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'warning' | 'blue' | 'purple' | 'pink' | 'green';
 }
 
 export const Badge = forwardRef<HTMLDivElement, BadgeProps>(
@@ -19,6 +19,10 @@ export const Badge = forwardRef<HTMLDivElement, BadgeProps>(
       destructive: 'bg-rose-500/20 text-rose-500 border border-rose-500/30',
       success: 'bg-pop-green/20 text-pop-green border border-pop-green/30',
       warning: 'bg-pop-yellow/20 text-pop-yellow border border-pop-yellow/30',
+      blue: 'bg-pop-blue/15 text-pop-blue border border-pop-blue/30',
+      purple: 'bg-pop-purple/15 text-pop-purple border border-pop-purple/30',
+      pink: 'bg-pop-pink/15 text-pop-pink border border-pop-pink/30',
+      green: 'bg-pop-green/15 text-pop-green border border-pop-green/30',
     };
 
     return (

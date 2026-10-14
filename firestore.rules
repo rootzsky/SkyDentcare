@@ -100,8 +100,9 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        ((request.auth.token.email == "rudisetiawan935@gmail.com" && request.auth.token.email_verified == true) ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+        (request.auth.token.email == "rudisetiawan935@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin']));
     }
 
     function isSupervisor() {
@@ -156,7 +157,7 @@ service cloud.firestore {
       return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
              data.uid == userId &&
              isValidEmail(data.email) &&
-             data.role in ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor'] &&
+             data.role in ['admin', 'dentist', 'dental_therapist', 'admin_staff', 'patient', 'supervisor', 'super_admin'] &&
              data.createdAt is timestamp;
     }
 
@@ -263,6 +264,10 @@ service cloud.firestore {
       allow create: if (isStaff() || isPatient()) && isValidInformedConsent(request.resource.data);
       allow update: if isStaff() && isValidInformedConsent(request.resource.data);
       allow delete: if isAdmin();
+    }
+
+    match /api_keys/{keyId} {
+      allow read, write: if isAdmin();
     }
   }
 }

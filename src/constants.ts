@@ -34,7 +34,10 @@ export const TOOTH_STATUS_COLORS = {
 
 export const ROLES = {
   admin: 'Administrator',
+  super_admin: 'Super Admin',
+  supervisor: 'Dosen Pembimbing',
   dentist: 'Dokter Gigi',
   dental_therapist: 'Terapis Gigi dan Mulut',
   admin_staff: 'Petugas Administrasi',
+  patient: 'Pasien',
 };

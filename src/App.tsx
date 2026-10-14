@@ -25,7 +25,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { auth, onAuthStateChanged, User, doc, getDoc, db, OperationType, handleFirestoreError, setDoc, Timestamp, sendEmailVerification } from './firebase';
 import { Mail } from 'lucide-react';
 import { Button } from './components/ui/Button';
-import { UserProfile } from './types';
+import { UserProfile, UserRole } from './types';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,19 +37,38 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        const isSuperAdminEmail = currentUser.email?.toLowerCase() === 'rudisetiawan935@gmail.com';
+        const isSupervisorEmail = currentUser.email?.toLowerCase() === 'dospem@gmail.com';
+
         try {
           const userDocRef = doc(db, 'users', currentUser.uid);
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
+            const data = userDoc.data() as UserProfile;
+            if (isSuperAdminEmail && data.role !== 'admin' && data.role !== 'super_admin') {
+              const updatedProfile: UserProfile = {
+                ...data,
+                role: 'admin',
+                displayName: data.displayName || 'Rudi Setiawan (Super Admin)',
+              };
+              try {
+                await setDoc(userDocRef, { role: 'admin', displayName: updatedProfile.displayName }, { merge: true });
+              } catch (e) {
+                console.warn('Could not auto-elevate role:', e);
+              }
+              setUserProfile(updatedProfile);
+            } else {
+              setUserProfile(data);
+            }
           } else {
             // Default profile for new users (e.g. from Google login)
+            const targetRole: UserRole = isSuperAdminEmail ? 'admin' : (isSupervisorEmail ? 'supervisor' : 'patient');
             const defaultProfile: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || '',
-              displayName: currentUser.displayName || 'User',
-              role: currentUser.email === 'rudisetiawan935@gmail.com' ? 'admin' : 'patient',
+              displayName: isSuperAdminEmail ? (currentUser.displayName || 'Rudi Setiawan (Super Admin)') : (currentUser.displayName || 'User'),
+              role: targetRole,
               createdAt: Timestamp.now(),
             };
             
@@ -67,8 +86,8 @@ export default function App() {
           const fallbackProfile: UserProfile = {
             uid: currentUser.uid,
             email: currentUser.email || '',
-            displayName: currentUser.displayName || 'User',
-            role: currentUser.email === 'rudisetiawan935@gmail.com' ? 'admin' : 'patient',
+            displayName: isSuperAdminEmail ? 'Rudi Setiawan (Super Admin)' : (currentUser.displayName || 'User'),
+            role: isSuperAdminEmail ? 'admin' : 'patient',
             createdAt: Timestamp.now(),
           };
           setUserProfile(fallbackProfile);
@@ -164,9 +183,9 @@ export default function App() {
           {currentView === 'medical-records' && <MedicalRecordForm />}
           {currentView === 'reports' && <Reports />}
           {currentView === 'appointments' && <Appointments />}
-          {currentView === 'security' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <Security />}
-          {currentView === 'settings' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <Settings />}
-          {currentView === 'master-data' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && <MasterData />}
+          {currentView === 'security' && (userProfile?.role === 'admin' || userProfile?.role === 'super_admin' || userProfile?.role === 'supervisor' || userProfile?.email?.toLowerCase() === 'rudisetiawan935@gmail.com') && <Security />}
+          {currentView === 'settings' && (userProfile?.role === 'admin' || userProfile?.role === 'super_admin' || userProfile?.role === 'supervisor' || userProfile?.email?.toLowerCase() === 'rudisetiawan935@gmail.com') && <Settings />}
+          {currentView === 'master-data' && (userProfile?.role === 'admin' || userProfile?.role === 'super_admin' || userProfile?.role === 'supervisor' || userProfile?.email?.toLowerCase() === 'rudisetiawan935@gmail.com') && <MasterData />}
           {currentView === 'diagnosis-guidelines' && <DiagnosisGuidelines />}
           {currentView === 'billing' && <BillingList />}
           {currentView === 'informed-consent' && <InformedConsent />}
