@@ -41,7 +41,12 @@ import {
   ShieldCheck,
   Check,
   RotateCw,
-  FolderSync
+  FolderSync,
+  FileCode,
+  BookOpen,
+  Copy,
+  ExternalLink,
+  Table
 } from 'lucide-react';
 import { 
   dummy100Patients, 
@@ -49,6 +54,12 @@ import {
   dummyFollowUpPrograms, 
   DentalPatient100 
 } from '../data/dummy100Patients';
+import { 
+  downloadSpssExcelWorkbook, 
+  downloadSpssSyntaxFile, 
+  generateSpssSyntaxString, 
+  buildSpssCodebook 
+} from '../utils/spssExcelExport';
 import { db, doc, setDoc, handleFirestoreError, OperationType } from '../firebase';
 import { toast } from 'sonner';
 
@@ -60,6 +71,11 @@ export function Reports() {
   const [selectedAgeGroup, setSelectedAgeGroup] = useState('all');
   const [selectedDiagnosis, setSelectedDiagnosis] = useState('all');
   const [selectedPatientModal, setSelectedPatientModal] = useState<DentalPatient100 | null>(null);
+  
+  // SPSS Guide and Syntax Modal State
+  const [showSpssModal, setShowSpssModal] = useState(false);
+  const [spssModalTab, setSpssModalTab] = useState<'guide' | 'codebook' | 'syntax'>('guide');
+  const [copiedSyntax, setCopiedSyntax] = useState(false);
   
   // Follow-up program status interactive tracking
   const [programsList, setProgramsList] = useState(dummyFollowUpPrograms);
@@ -126,6 +142,46 @@ export function Reports() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Export Excel (.xlsx) specifically configured for IBM SPSS Statistics
+  const handleDownloadExcel = () => {
+    try {
+      const filename = downloadSpssExcelWorkbook();
+      toast.success(
+        <div className="space-y-1">
+          <p className="font-bold">File Excel SPSS Berhasil Diunduh!</p>
+          <p className="text-xs text-gray-500">File: {filename} (5-Sheet: DATA_SPSS, KAMUS_VARIABEL, RINGKASAN, PROGRAM, SINTAKS)</p>
+        </div>
+      );
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      toast.error('Gagal mengunduh file Excel. Pastikan browser mengizinkan download.');
+    }
+  };
+
+  // Download raw SPSS Syntax (.sps) file
+  const handleDownloadSyntax = () => {
+    try {
+      downloadSpssSyntaxFile();
+      toast.success('File Sintaks SPSS (.sps) berhasil diunduh! Jalankan di IBM SPSS Syntax Editor.');
+    } catch (error) {
+      console.error('Error downloading SPSS syntax:', error);
+      toast.error('Gagal mengunduh file sintaks SPSS.');
+    }
+  };
+
+  // Copy SPSS Syntax to clipboard
+  const handleCopySyntax = () => {
+    try {
+      const syntax = generateSpssSyntaxString();
+      navigator.clipboard.writeText(syntax);
+      setCopiedSyntax(true);
+      toast.success('Sintaks IBM SPSS berhasil disalin ke clipboard!');
+      setTimeout(() => setCopiedSyntax(false), 3000);
+    } catch (err) {
+      toast.error('Gagal menyalin sintaks ke clipboard.');
+    }
   };
 
   const handleDownloadCSV = () => {
@@ -254,37 +310,59 @@ export function Reports() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Button 
             variant="ghost" 
             onClick={handlePrint}
-            className="flex items-center space-x-3 px-6 py-6 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 bg-white hover:bg-gray-50 shadow-md"
+            className="flex items-center space-x-2 px-5 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 bg-white hover:bg-gray-50 shadow-md"
           >
             <Printer className="h-4 w-4 text-pop-purple" />
-            <span className="text-pop-text">Cetak Laporan</span>
+            <span className="text-pop-text">Cetak</span>
           </Button>
 
+          {/* Primary Excel Download for SPSS */}
+          <Button 
+            onClick={handleDownloadExcel}
+            className="flex items-center space-x-2.5 px-6 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/25 border-2 border-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-100" />
+            <span>Unduh Excel SPSS (.xlsx)</span>
+            <span className="bg-emerald-500/60 text-[9px] px-2 py-0.5 rounded-full font-mono">5-Sheet</span>
+          </Button>
+
+          {/* SPSS Guide & Syntax Modal Trigger */}
+          <Button 
+            variant="ghost"
+            onClick={() => setShowSpssModal(true)}
+            className="flex items-center space-x-2 px-5 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-pop-blue/30 bg-pop-blue/5 hover:bg-pop-blue/10 text-pop-blue shadow-md"
+          >
+            <FileCode className="h-4 w-4 text-pop-blue" />
+            <span>Panduan & Sintaks SPSS</span>
+          </Button>
+
+          {/* Fallback CSV */}
           <Button 
             variant="ghost"
             onClick={handleDownloadCSV}
-            className="flex items-center space-x-3 px-6 py-6 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 bg-white hover:bg-gray-50 shadow-md"
+            title="Unduh format CSV standar"
+            className="flex items-center space-x-2 px-4 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-gray-100 bg-white hover:bg-gray-50 shadow-sm text-gray-500"
           >
-            <Download className="h-4 w-4 text-pop-green" />
-            <span className="text-pop-text">Unduh CSV (100 Pasien)</span>
+            <Download className="h-3.5 w-3.5 text-gray-400" />
+            <span>CSV</span>
           </Button>
 
           <Button 
             variant="primary" 
             onClick={handleSyncToFirestore}
             disabled={isSyncing}
-            className="px-8 py-6 rounded-2xl shadow-xl shadow-pop-blue/20 font-black uppercase tracking-widest text-xs"
+            className="px-6 py-5 rounded-2xl shadow-xl shadow-pop-blue/20 font-black uppercase tracking-widest text-[10px]"
           >
             {isSyncing ? (
               <RotateCw className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <FolderSync className="h-4 w-4 mr-2" />
             )}
-            {isSyncing ? `Sinkronisasi (${syncProgress}%)...` : 'Sinkronkan 100 Pasien ke DB'}
+            {isSyncing ? `Sinkron (${syncProgress}%)...` : 'Sinkron ke DB'}
           </Button>
         </div>
       </div>
@@ -430,6 +508,55 @@ export function Reports() {
                 <p className="text-gray-600 text-[11px]">
                   93.8% lansia (51+) mengalami kehilangan gigi yang signifikan (rata-rata 6.8 elemen gigi hilang) yang membutuhkan prostodonti rehabilitatif (GTSL / GTL).
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SPSS Research & Biostatistics Ready Banner */}
+          <div className="p-8 bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-[2.5rem] shadow-2xl border-2 border-emerald-500/30 flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex items-center gap-2.5">
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                  Format Ekspor SPSS .xlsx Multi-Sheet
+                </span>
+                <Badge variant="blue" className="text-[9px] font-black uppercase tracking-wider">
+                  N = 100 Sampel
+                </Badge>
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-white uppercase italic">
+                Data Siap Analisis Statistik IBM SPSS (Chi-Square, Pearson, ANOVA, T-Test)
+              </h3>
+              <p className="text-xs text-emerald-100/80 leading-relaxed">
+                Seluruh 100 rekam medis telah dikonversi ke format variabel standar SPSS: nama kolom tanpa spasi (<code className="font-mono text-emerald-300">USIA, KELAMIN, DMFT_TOTAL, OHIS_KAT</code>), pengkodean nilai kategorik numerik (<code className="font-mono text-emerald-300">1=L, 2=P</code>), kamus variabel (codebook), serta skrip sintaks otomatis.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap lg:flex-col gap-3 w-full lg:w-auto shrink-0">
+              <Button
+                onClick={handleDownloadExcel}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black uppercase tracking-widest text-xs px-6 py-5 rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 border-none w-full transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Unduh File Excel (.xlsx)</span>
+              </Button>
+              <div className="flex items-center gap-2 w-full">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowSpssModal(true)}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-widest text-[10px] px-4 py-4 rounded-xl border border-white/10 flex-1 flex items-center justify-center gap-1.5"
+                >
+                  <BookOpen className="h-3.5 w-3.5 text-emerald-300" />
+                  <span>Panduan & Kamus</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleDownloadSyntax}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-widest text-[10px] px-4 py-4 rounded-xl border border-white/10 flex-1 flex items-center justify-center gap-1.5"
+                >
+                  <FileCode className="h-3.5 w-3.5 text-teal-300" />
+                  <span>Sintaks .sps</span>
+                </Button>
               </div>
             </div>
           </div>
@@ -810,14 +937,32 @@ export function Reports() {
                   Menampilkan {filtered100Patients.length} dari 100 pasien terdaftar
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                onClick={handleDownloadCSV}
-                className="text-[10px] font-black uppercase tracking-widest border border-gray-200 rounded-xl px-4 py-3"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-2 text-pop-green" />
-                Ekspor Excel / CSV
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={handleDownloadExcel}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-3 shadow-md shadow-emerald-600/20 flex items-center gap-2 border-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-100" />
+                  <span>Unduh Excel SPSS (.xlsx)</span>
+                  <span className="bg-emerald-500/60 text-[9px] px-1.5 py-0.5 rounded font-mono">5-Sheet</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowSpssModal(true)}
+                  className="text-[10px] font-black uppercase tracking-widest border border-pop-blue/30 bg-pop-blue/5 hover:bg-pop-blue/10 text-pop-blue rounded-xl px-3 py-3 flex items-center gap-1.5"
+                >
+                  <FileCode className="h-4 w-4" />
+                  <span>Panduan & Sintaks SPSS</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleDownloadCSV}
+                  className="text-[10px] font-black uppercase tracking-widest border border-gray-200 hover:bg-gray-50 rounded-xl px-3 py-3 text-gray-500 flex items-center gap-1"
+                >
+                  <Download className="h-3.5 w-3.5 text-gray-400" />
+                  <span>CSV</span>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -975,6 +1120,242 @@ export function Reports() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* MODAL PANDUAN, KAMUS VARIABEL & SINTAKS IBM SPSS                         */}
+      {/* ========================================================================= */}
+      {showSpssModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[3rem] p-8 md:p-10 max-w-4xl w-full border-2 border-gray-100 shadow-2xl space-y-6 animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-gray-100 pb-6 shrink-0">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-300">
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+                    SPSS Integration Suite
+                  </span>
+                  <Badge variant="blue" className="text-[9px] font-black uppercase">
+                    100 Pasien • 25 Variabel
+                  </Badge>
+                </div>
+                <h3 className="text-2xl font-black text-pop-text tracking-tight uppercase italic mt-1.5">
+                  Panduan Analisis Statistik IBM SPSS
+                </h3>
+                <p className="text-xs text-gray-500 font-bold mt-1">
+                  Format Excel multi-sheet (.xlsx) dengan koding numerik otomatis dan skrip sintaks untuk olah data skripsi / riset klinis.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowSpssModal(false)} 
+                className="p-2.5 hover:bg-gray-100 rounded-2xl text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Subtabs */}
+            <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
+              <button
+                onClick={() => setSpssModalTab('guide')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  spssModalTab === 'guide'
+                    ? 'bg-pop-blue text-white shadow-md'
+                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                1. Langkah Impor ke SPSS
+              </button>
+              <button
+                onClick={() => setSpssModalTab('codebook')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  spssModalTab === 'codebook'
+                    ? 'bg-pop-purple text-white shadow-md'
+                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                2. Kamus Variabel (Codebook)
+              </button>
+              <button
+                onClick={() => setSpssModalTab('syntax')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  spssModalTab === 'syntax'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                3. Sintaks Otomatis (.sps)
+              </button>
+            </div>
+
+            {/* Modal Body: Scrollable */}
+            <div className="overflow-y-auto flex-1 space-y-6 pr-2 text-xs">
+              {/* TAB 1: Langkah Impor */}
+              {spssModalTab === 'guide' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-5 bg-blue-50/60 rounded-2xl border-2 border-blue-100 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-pop-blue text-white flex items-center justify-center font-black text-xs">1</span>
+                        <h4 className="font-black text-pop-text uppercase tracking-wider text-[11px]">Buka File di SPSS</h4>
+                      </div>
+                      <p className="text-gray-600 leading-relaxed text-[11px]">
+                        Buka aplikasi <strong>IBM SPSS Statistics</strong>. Klik menu <code>File &gt; Open &gt; Data</code>. Pada pilihan <em>Files of type</em>, pilih <strong>Excel (*.xlsx)</strong> dan pilih file unduhan.
+                      </p>
+                    </div>
+
+                    <div className="p-5 bg-purple-50/60 rounded-2xl border-2 border-purple-100 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-pop-purple text-white flex items-center justify-center font-black text-xs">2</span>
+                        <h4 className="font-black text-pop-text uppercase tracking-wider text-[11px]">Pilih Sheet DATA_SPSS</h4>
+                      </div>
+                      <p className="text-gray-600 leading-relaxed text-[11px]">
+                        Pada dialog <em>Opening Excel Data Source</em>, pilih Worksheet <strong>DATA_SPSS</strong>. Pastikan tanda centang pada <strong>"Read variable names from first row of data"</strong> aktif. Klik OK.
+                      </p>
+                    </div>
+
+                    <div className="p-5 bg-emerald-50/60 rounded-2xl border-2 border-emerald-100 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs">3</span>
+                        <h4 className="font-black text-pop-text uppercase tracking-wider text-[11px]">Jalankan Sintaks (.sps)</h4>
+                      </div>
+                      <p className="text-gray-600 leading-relaxed text-[11px]">
+                        Buka <code>File &gt; New &gt; Syntax</code>, tempel skrip sintaks yang disediakan, lalu tekan tombol hijau <strong>Run All</strong> (atau Ctrl+A lalu Ctrl+R). Semua label, koding, dan uji statistik langsung selesai!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                    <h4 className="font-black text-pop-text uppercase tracking-wide text-xs flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      Uji Statistik yang Siap Dijalankan Langsung pada Dataset Ini:
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px]">
+                      <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-1">
+                        <span className="font-black text-pop-blue uppercase">Uji Hubungan / Korelasi (Bivariat):</span>
+                        <p className="text-gray-600">
+                          • <strong>Chi-Square / Fisher's Exact</strong>: Hubungan Kategori Usia dengan Kategori DMF-T atau OHI-S.<br/>
+                          • <strong>Korelasi Pearson / Spearman</strong>: Korelasi antara Usia, Skor DMF-T Total, OHI-S Total, dan Plak Indeks.
+                        </p>
+                      </div>
+                      <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-1">
+                        <span className="font-black text-pop-pink uppercase">Uji Komparasi Rata-rata (Beda Mean):</span>
+                        <p className="text-gray-600">
+                          • <strong>Independent Samples T-Test</strong>: Perbedaan skor DMF-T atau OHI-S antara Laki-laki vs Perempuan.<br/>
+                          • <strong>One-Way ANOVA / Kruskal-Wallis</strong>: Perbedaan tingkat keparahan karies lintas 5 kelompok umur.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: Kamus Variabel (Codebook) */}
+              {spssModalTab === 'codebook' && (
+                <div className="space-y-4">
+                  <p className="text-gray-600 text-xs">
+                    Berikut adalah daftar 25 variabel standar SPSS yang terdapat dalam sheet <strong>DATA_SPSS</strong> dan sheet <strong>KAMUS_VARIABEL_SPSS</strong>:
+                  </p>
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden max-h-96 overflow-y-auto">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead className="bg-gray-100 text-gray-500 uppercase tracking-wider sticky top-0 font-black">
+                        <tr>
+                          <th className="p-3">Nama Variabel</th>
+                          <th className="p-3">Label Variabel</th>
+                          <th className="p-3 text-center">Tipe</th>
+                          <th className="p-3 text-center">Skala</th>
+                          <th className="p-3">Koding / Value Labels</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {buildSpssCodebook().map((row) => (
+                          <tr key={row.NO} className="hover:bg-gray-50/80">
+                            <td className="p-3 font-mono font-bold text-pop-blue">{row.NAMA_VARIABEL_SPSS}</td>
+                            <td className="p-3 font-medium text-gray-800">{row.LABEL_VARIABEL}</td>
+                            <td className="p-3 text-center font-mono text-[10px] text-gray-500">{row.TIPE_DATA}</td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase ${
+                                row.SKALA_PENGUKURAN.includes('Scale') 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : row.SKALA_PENGUKURAN === 'Ordinal' 
+                                  ? 'bg-amber-100 text-amber-700' 
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {row.SKALA_PENGUKURAN}
+                              </span>
+                            </td>
+                            <td className="p-3 text-gray-600 text-[10px]">{row.PANDUAN_KODING_VALUE_LABELS}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: Sintaks SPSS (.sps) */}
+              {spssModalTab === 'syntax' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-gray-600 text-xs">
+                      Skrip sintaks resmi IBM SPSS untuk menamai variabel, memberikan label nilai koding (1=L, 2=P, dll), serta mengeksekusi uji statistik deskriptif dan uji hipotesis:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        onClick={handleCopySyntax}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 bg-white hover:bg-gray-50"
+                      >
+                        {copiedSyntax ? <Check className="h-3.5 w-3.5 text-emerald-600 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                        {copiedSyntax ? 'Tersalin!' : 'Salin Sintaks'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={handleDownloadSyntax}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                        Unduh File .sps
+                      </Button>
+                    </div>
+                  </div>
+                  <pre className="p-5 bg-slate-900 text-emerald-300 font-mono text-[10.5px] rounded-2xl overflow-x-auto max-h-96 border border-slate-800 leading-relaxed selection:bg-emerald-500 selection:text-slate-950">
+                    {generateSpssSyntaxString()}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleDownloadExcel}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs px-6 py-5 rounded-2xl shadow-xl shadow-emerald-600/20 flex items-center gap-2 border-none"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>Unduh File Excel (.xlsx) Siap SPSS</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleDownloadSyntax}
+                  className="border-2 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold uppercase tracking-widest text-xs px-5 py-5 rounded-2xl flex items-center gap-1.5"
+                >
+                  <FileCode className="h-4 w-4 text-pop-blue" />
+                  <span>Unduh Sintaks (.sps)</span>
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                onClick={() => setShowSpssModal(false)}
+                className="px-6 py-5 rounded-2xl text-xs font-bold text-gray-500 hover:bg-gray-100"
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
